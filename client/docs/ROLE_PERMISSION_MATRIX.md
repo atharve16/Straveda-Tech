@@ -11,7 +11,7 @@
 | HPCL Level 4 officer | HPCL hierarchy designation in `ORD_HPCL_DESIG` | Exact effective account scope and privileges require full source review. |
 | Outlet | `portal_outlet_users`, `outlet=true`, one SAP number | Derived zone/region/sales area from outlet record on login/check; `ordScope` limits to its own SAP. `ordAwaitCond` explicitly returns false for an outlet account. |
 
-This is not a complete permission matrix. `auth.php`, `ordScope`, page controls and all action guards must be mapped before domain implementation.
+This is not a complete permission matrix. The 18 page IDs in `auth.php` are visibility settings, not a substitute for server-side authorization. `auth.php` account mutations, `outletApi`, `api.php` pending/MIS access, `misScopeSql`, all `orders.php` guards, and any GET mutation behavior still need action-by-action review. The absent live `users.php` prevents verifying live per-user page and approval-state grants. Every unlisted permission remains `NEEDS_CLARIFICATION`.
 
 ## Verified order decision eligibility
 

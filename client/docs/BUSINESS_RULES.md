@@ -1,6 +1,6 @@
 ﻿# Verified business rules (source review in progress)
 
-The rules below are source-derived. Runtime parity and the complete 87-action audit remain unverified.
+The rules below are source-derived fragments, not a complete contract for the 87 dispatchable actions. Runtime parity is unverified. `config.php`, live `users.php`, and the `mis-data` directory are absent; `config.example.php` and `03-demo-data/users.demo.php` describe a demo setup, not the live portal. No rule inferred from those missing files is treated as verified.
 
 ## Orders, approval and stock
 
@@ -28,7 +28,11 @@ The rules below are source-derived. Runtime parity and the complete 87-action au
 
 `mis-xlsx.php:299-370` identifies data sheet `sheet2.xml` with columns A:M, pivot caches 2 and 3, pivot tables 3 through 6, template styles, report sheets and workbook XML references. These are edits to an existing workbook package. The source does not supply the original styles, relationships, pivot layouts or workbook package, so it is insufficient to recreate the template faithfully.
 
-`salesorder.js:327-331` encodes a URL built from `invoice.html?t=<doc_token>` and the portal base URI. For an offline app, use a QR with a versioned, self-contained invoice summary and a digest that can be compared with the locally opened invoice. Include document type/number, order reference/date, outlet SAP, line quantities including FOC, totals and a local record identifier. This is a proposed new offline format, not verified portal behavior; exact fields and privacy treatment require product approval before implementation. Do not encode a web URL.
+`salesorder.js:327-331` encodes the absolute URL produced by `new URL('invoice.html?t='+o.doc_token, document.baseURI)`. `invoice.html:32` fetches `orders.php?action=public_invoice&t=<token>` and creates a PDF locally from the response. `orders.php:1062-1075` validates a 32-character lowercase hex token, selects an approved generated invoice, and redacts actor and token fields. The server URL and unauthenticated lookup cannot work on a standalone offline installation. Preserve the invoice's identity, line quantities including legacy FOC behavior, tax/financial values, and local authenticity check in a versioned offline QR design; exact payload and privacy policy remain a product decision. No network URL workaround is acceptable.
+
+`mis-core.php:174` also expects `mis-data/seed.json` for its first-use import. The supplied `03-demo-data/json/portal_mis_rows.json` provides seeded rows for SQLite, but the original workbook seed file is absent. `mis-xlsx.php` rewrites the data sheet and pivot parts of the original ZIP package while retaining its styles and relationships; without `template.xlsx`, exact layout, shared strings, formatting, and pivot behavior cannot be compared. Keep Excel parity pending the actual template.
+
+`orders.php:1091-1094` comments that outlet profiles can approve like a regional officer, while `ordAwaitCond` returns an impossible condition for a nonempty outlet SAP. The implemented condition blocks outlet decisions. This source contradiction needs product confirmation before any Android approval service is written. The server router checks CSRF on POST, but per-action method restrictions and any possible GET mutation path still require a complete audit.
 
 ## Additional validated details
 

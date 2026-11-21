@@ -6,10 +6,10 @@ This folder records the current state of the offline Android migration. **The An
 
 | Area | Completed work | Evidence |
 |---|---|---|
-| Source review | Original inventory of 86 routed PHP actions and 305 helper functions; an early public invoice action brings the reachable action count to at least 87. Selected auth/order/MIS rules reviewed; complete audit pending | [Source audit](SOURCE_CODE_AUDIT.md), [business rules](BUSINESS_RULES.md) |
+| Source review | Updated inventory confirms 87 dispatchable PHP actions including the public invoice branch and 305 declared helpers. Selected auth/order/MIS rules reviewed; complete action and helper contracts pending | [Source audit](SOURCE_CODE_AUDIT.md), [business rules](BUSINESS_RULES.md) |
 | Migration planning | An action-by-action working inventory and a partial role matrix | [PHP to TypeScript mapping](PHP_TO_TYPESCRIPT_MAPPING.md), [role matrix](ROLE_PERMISSION_MATRIX.md) |
 | Local database | SQLite seed generated from `03-demo-data/schema.sql` and the supplied JSON, with 13 core tables, local officer accounts and three runtime tables | [Database report](DATABASE_MIGRATION_REPORT.md), `../assets/database/rohan_energy_demo.db` |
-| Expo foundation source | Android-only Expo Router entry, bundled SQLite asset loading, schema-version and foreign-key checks, EAS build profiles | `../app/`, `../app.config.js`, `../eas.json`, [architecture](ARCHITECTURE.md) |
+| Expo foundation source | Android-only Expo Router entry, bundled SQLite asset loading, schema-version and foreign-key checks, startup error boundary, EAS build profiles | `../app/`, `../app.config.js`, `../eas.json`, [architecture](ARCHITECTURE.md) |
 | Verification | Nine passing seed tests, TypeScript typecheck and offline source scan; Expo dependency check found a React Native version mismatch | [Test report](TEST_REPORT.md), [offline verification](OFFLINE_VERIFICATION.md) |
 | Security and reset planning | Offline security limits and a recoverable reset sequence | [Security](SECURITY.md), [architecture](ARCHITECTURE.md) |
 
@@ -35,7 +35,7 @@ The source JSON and SQLite values match. SQLite integrity, original columns/inde
 - Implement the Settings reset action and its rollback-safe database and file restoration. It is currently **documented only**.
 - Run Android device tests in airplane mode, compare PDFs and workbooks, and build signed APK and AAB files through EAS.
 
-The source kit omits the `mis-data/template.xlsx` file referenced by the PHP MIS export code. The original public invoice QR link also assumes a server and needs an offline equivalent; see [known limitations](KNOWN_LIMITATIONS.md).
+The source kit omits `config.php`, live `users.php`, `mis-data/seed.json`, and `mis-data/template.xlsx`; demo substitutes exist for configuration and users, while the workbook package is absent. The original public invoice QR link assumes a server and needs an offline equivalent; see [source audit](SOURCE_CODE_AUDIT.md) and [known limitations](KNOWN_LIMITATIONS.md).
 
 ## Reproduce the completed checks
 
@@ -47,10 +47,10 @@ python -m unittest discover -s tests/database -v
 python scripts/check_offline.py
 ```
 
-The last run passed nine tests and found no runtime network references in `app/` or `src/`. See [build instructions](BUILD_INSTRUCTIONS.md) for the planned EAS commands and their current limitations.
+The last run passed nine tests and found no runtime network references in the existing `app/`. The scanner also checks `src/` when that directory exists; it does not exist yet. See [build instructions](BUILD_INSTRUCTIONS.md) for the planned EAS commands and their current limitations.
 
 ## Exact next task
 
-Finish the source behavior mapping and PHP-compatible bcrypt verification, then align/install the remaining Expo and lint dependencies with npm registry access and run Android startup/persistence tests. Phase 0 and Phase 1 are not complete. The detailed status table is in [module implementation status](MODULE_IMPLEMENTATION_STATUS.md).
+Finish the 87 action contracts and 305 helper reachability/disposition review, seeking the omitted live source and workbook where required. Then verify PHP-compatible bcrypt, install React Native 0.88.1 and `expo-dev-client` with registry access, and run an EAS Android startup/restart/airplane-mode check. Phase 0 and Phase 1 are not complete. The detailed status table is in [module implementation status](MODULE_IMPLEMENTATION_STATUS.md). The client belongs to the parent Git repository; review and commit there, then push manually.
 
 

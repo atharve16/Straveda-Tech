@@ -2,21 +2,21 @@
 
 | Area | Status |
 |---|---|
-| Source action/helper inventory | Original script reports 86/305; early `public_invoice` raises reachable action count to at least 87. Full behavioral audit pending |
-| PHP to TypeScript action inventory | Generated; selected auth/order/MIS contracts reviewed, most action contracts pending; no TypeScript services exist |
+| Source action/helper inventory | 87 dispatchable actions and 305 declared functions confirmed by updated script; 1 fully audited action (`auth.logout`), 86 pending actions, 0 fully audited relevant helpers; reachability and migration disposition of helpers pending |
+| PHP to TypeScript action inventory | `auth.logout` is `AUDITED`; the other 86 actions and all 305 helpers are `NEEDS_CLARIFICATION`; selected auth/order/MIS fragments reviewed, complete contracts pending; no TypeScript services exist |
 | SQLite schema and demo seed asset | Generated; all source JSON values, columns, indexes, cascade foreign keys and decimal storage checked; bcrypt verification pending |
 | Database seed tests | Nine passing tests; Android lifecycle integration pending |
-| Expo foundation source | Dependencies installed from available npm cache; TypeScript passes; Android JS/asset export passes without Hermes bytecode and seed hash matches; Expo version check flags React Native 0.88.0 vs expected 0.88.1; Hermes/device validation pending |
+| Expo foundation source | TypeScript passes; root route error boundary added; earlier Android JS/asset export without Hermes bytecode passed; Expo SDK 58 expects React Native 0.88.1 while lockfile pins 0.88.0, and offline npm cache lacks 0.88.1; Hermes/device validation pending |
 | Android APK/AAB | Not built |
 | Reset Demo Data | Recovery sequence documented in `ARCHITECTURE.md`; runtime adapter and Settings action not implemented |
-| Offline source scan | Passed for current `app/` and `src/`; no device test yet |
+| Offline source scan | Passed for the existing `app/`; scanner would also inspect `src/` if created later; no device test yet |
 | Authentication, authorization and 18 screens | Not started |
 | Orders, approvals, delivery, returns | Not started |
 | MIS, Excel, PDF and offline QA | Not started |
 
 Phase 0 and Phase 1 are **not complete**. Next: finish all action contracts and bcrypt verification, obtain npm registry access for React Native 0.88.1, `expo-dev-client` and ESLint, then validate Expo/Android startup and database persistence. Authentication comes after those gates.
 
-The client folder is not currently a Git repository; GitHub setup is also pending.
+The client is inside the parent Git working tree (`git rev-parse --show-toplevel` resolves to `C:/Users/HP/Downloads/ANDROID-DEVELOPER-KIT`). Review and commit changes from that repository root; the user will push manually.
 
 ## Phase 2 scope after Phase 0/1 gates
 

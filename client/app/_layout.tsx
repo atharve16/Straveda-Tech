@@ -1,7 +1,17 @@
 import { SQLiteProvider, type SQLiteDatabase } from 'expo-sqlite';
-import { Stack } from 'expo-router';
+import { Stack, type ErrorBoundaryProps } from 'expo-router';
 import { Suspense } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, Button, Text, View } from 'react-native';
+
+export function ErrorBoundary({ retry }: ErrorBoundaryProps) {
+  return (
+    <View style={{ flex: 1, justifyContent: 'center', padding: 24, gap: 12 }}>
+      <Text accessibilityRole="alert">The local database could not be opened.</Text>
+      <Text>Check that the app has enough storage, then try again.</Text>
+      <Button title="Try again" onPress={retry} />
+    </View>
+  );
+}
 
 async function initialize(db: SQLiteDatabase) {
   await db.execAsync('PRAGMA foreign_keys = ON');

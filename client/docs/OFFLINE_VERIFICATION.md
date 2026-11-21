@@ -1,6 +1,6 @@
 # Offline verification
 
-The Phase 1 source scan is `python scripts/check_offline.py`. It searches `app/` and `src/` for URL literals and common network clients. It does not inspect native dependency code, binary assets or generated Android manifests. The web portal's CDN references remain only in the unmodified source kit and are not used by the client.
+The Phase 1 source scan is `python scripts/check_offline.py`. It scans `client/app/` and, if present, `client/src/` for URL literals and common network clients. There is currently no `client/src/`, so this run covered the two files in `app/` only. Inspection of `package.json`, route imports, Metro configuration and the local `.db` asset found no application runtime API, cloud database, external authentication dependency or remote core asset. The scanner does not inspect native dependency code, binary assets, generated manifests, dynamically built URLs, or actual device behavior. The web portal's CDN references remain only in the unmodified source kit and are not used by the client.
 
 Release profiles in `app.config.js` block Android `INTERNET` and `ACCESS_NETWORK_STATE` permissions. The development build permits networking for the Expo development server; this does not constitute an offline release test.
 
