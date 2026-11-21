@@ -6,7 +6,7 @@ This folder records the current state of the offline Android migration. **The An
 
 | Area | Completed work | Evidence |
 |---|---|---|
-| Source review | Updated inventory confirms 87 dispatchable PHP actions including the public invoice branch and 305 declared helpers. Selected auth/order/MIS rules reviewed; complete action and helper contracts pending | [Source audit](SOURCE_CODE_AUDIT.md), [business rules](BUSINESS_RULES.md) |
+| Source review | Inventory confirms 87 PHP actions and 305 helpers. All 23 authentication actions and 63 reachable focus-file helpers have source contracts; three focus helpers have unknown reachability. Other module audits remain pending | [Authentication audit](AUTHENTICATION_AUDIT_REPORT.md), [source audit](SOURCE_CODE_AUDIT.md) |
 | Migration planning | An action-by-action working inventory and a partial role matrix | [PHP to TypeScript mapping](PHP_TO_TYPESCRIPT_MAPPING.md), [role matrix](ROLE_PERMISSION_MATRIX.md) |
 | Local database | SQLite seed generated from `03-demo-data/schema.sql` and the supplied JSON, with 13 core tables, local officer accounts and three runtime tables | [Database report](DATABASE_MIGRATION_REPORT.md), `../assets/database/rohan_energy_demo.db` |
 | Expo foundation source | Android-only Expo Router entry, bundled SQLite asset loading, schema-version and foreign-key checks, startup error boundary, EAS build profiles | `../app/`, `../app.config.js`, `../eas.json`, [architecture](ARCHITECTURE.md) |
@@ -51,6 +51,6 @@ The last run passed nine tests and found no runtime network references in the ex
 
 ## Exact next task
 
-Finish the 87 action contracts and 305 helper reachability/disposition review, seeking the omitted live source and workbook where required. Then verify PHP-compatible bcrypt, install React Native 0.88.1 and `expo-dev-client` with registry access, and run an EAS Android startup/restart/airplane-mode check. Phase 0 and Phase 1 are not complete. The detailed status table is in [module implementation status](MODULE_IMPLEMENTATION_STATUS.md). The client belongs to the parent Git repository; review and commit there, then push manually.
+Finish the remaining 64 non-authentication action contracts and 239 other helper reviews, and resolve the three unknown-reachability authentication helpers and omitted live source/workbook where required. Then verify PHP-compatible bcrypt, install React Native 0.88.1 and `expo-dev-client` with registry access, and run an EAS Android startup/restart/airplane-mode check. Phase 0 and Phase 1 are not complete. The detailed status table is in [module implementation status](MODULE_IMPLEMENTATION_STATUS.md). The client belongs to the parent Git repository; review and commit there, then push manually.
 
 

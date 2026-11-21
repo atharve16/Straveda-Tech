@@ -1,6 +1,6 @@
 # Source code audit — working inventory
 
-This inventory was checked against the supplied PHP dispatch switches and the early `public_invoice` branch at `orders.php:1062`. The original script missed that branch. `python scripts/source_inventory.py` now reports **87 actions and 305 declared PHP functions** without overwriting these notes. This is a route/function inventory, not a completed behavioral audit. Each row remains `NEEDS_CLARIFICATION` until its complete contract (inputs, method, validation, guards, reads/writes, transaction, return, errors, callers and Android equivalent) is reviewed. The sole fully documented action, `auth.logout`, is `AUDITED`. The PHP source remains authoritative.
+This inventory was checked against the supplied PHP dispatch switches and the early `public_invoice` branch at `orders.php:1062`. The original script missed that branch. `python scripts/source_inventory.py` reports **87 actions and 305 declared PHP functions** without overwriting these notes. The 23 `auth.php` actions and 63 directly reachable authentication helpers have source contracts in [AUTHENTICATION_AUDIT_REPORT.md](AUTHENTICATION_AUDIT_REPORT.md); three authentication helper call sites remain unknown. Other modules remain a route/function inventory, not a completed behavioral audit. The PHP source remains authoritative.
 
 ## Completeness gate (2026-11-22)
 
@@ -10,11 +10,11 @@ This inventory was checked against the supplied PHP dispatch switches and the ea
 | Syntactically routable by PHP dispatch URL/body | 87; runtime execution needs the absent `config.php` and a populated local database |
 | Confirmed dead actions | 0; frontend usage is not a reachability requirement for a public route |
 | Declared PHP helper functions | 305 |
-| Confirmed reachable helper functions | Not yet established; a call graph, including dynamic calls, is pending |
-| Helpers requiring TypeScript migration | Not yet established; server-only utilities need disposition after behavioral review |
-| Fully audited actions | 1 (`auth.logout`) under the required full-contract definition |
-| Pending actions | 86 |
-| Fully audited relevant helpers | 0 under the required full-contract definition |
+| Confirmed reachable helper functions | 63 authentication helpers traced to supplied route call chains; other modules pending |
+| Helpers requiring TypeScript migration | 50 reachable authentication rule/security helpers; 13 server-only adapters need local replacements; 3 auth helper reachability unknown; other modules pending |
+| Fully audited actions | 23 (`auth.php`); no Android implementation |
+| Pending actions | 64 (non-authentication routes) |
+| Fully audited authentication helpers | 63 of 66 declared in focus files; 3 have unknown reachability |
 
 The 305 functions include 25 in `mis-xlsx.php`; this file contains a NUL byte, so ordinary `rg` treats it as binary and undercounts functions. The inventory script reads it as text. The frontend files `index.html`, `orders.js`, `mis.js`, `dash-reports.js`, `salesorder.js`, and `invoice.html` call the PHP endpoints; `invoice.html:32` calls `public_invoice`. API action names repeat across separate endpoints (`approve`, `delete`, `get`, `import`); these are distinct routes, not duplicate implementations. No action is proven dead merely because a static search missed a browser caller.
 
@@ -22,39 +22,69 @@ The 305 functions include 25 in `mis-xlsx.php`; this file contains a NUL byte, s
 
 `auth.php`, `orders.php`, `api.php`, and `mis-core.php` include `config.php`, which is absent; only `config.example.php` is supplied. `users-store.php` reads `users.php`, also absent; `03-demo-data/users.demo.php` is the supplied demo substitute. `mis-core.php:174` references absent `mis-data/seed.json`, while `mis-core.php:289` and `mis-xlsx.php` need absent `mis-data/template.xlsx`. The JSON demo MIS rows are supplied separately, but they do not recreate the workbook package. The original live configuration, live officer roster, and workbook cannot be audited from this kit.
 
-For **each of the other 86 action rows below**, review its dispatch branch and the called helper body (including indirect calls), then record required and optional fields, method and CSRF behavior, validation, authentication and role/scope guards, tables and SQL, transaction boundaries, success/error payloads, and Android service/test mapping. For **each of the 305 helper rows**, record signature and return, purpose, callers and reachability, database effects and rule, and `MIGRATED`/`NOT_REQUIRED` disposition. The existing selected contract fragments at the end are partial evidence and do not satisfy this gate. Run a PHP-aware call graph or equivalent manual review; simple regex references cannot prove reachability or unused status. Compare JavaScript action references and HTML forms against the final route list. No Phase 2 implementation is authorized by this inventory.
+For **each of the remaining 64 action rows below**, review its dispatch branch and the called helper body (including indirect calls), then record required and optional fields, method and CSRF behavior, validation, authentication and role/scope guards, tables and SQL, transaction boundaries, success/error payloads, and Android service/test mapping. The 239 other helper rows and three unknown-reachability authentication helpers still need disposition. The selected non-authentication contract fragments at the end are partial evidence and do not satisfy this gate. Compare JavaScript action references and HTML forms against the final route list. No Phase 2 implementation is authorized by this source audit.
 
 ### Fully audited action contract
 
 `auth.logout` (`auth.php:171-174`; browser caller `index.html:1238`) accepts the `action=logout` selector via query string or JSON body on any HTTP method; it has no required or optional business fields. The router starts a PHP session and may create a CSRF token before dispatch, but explicitly skips the user-file lock for `logout` and has no logout CSRF or authentication guard. A guest and every officer/outlet role may call it. It calls `session_destroy()`, reads/writes no application database table, executes no SQL and starts no database transaction. It responds with JSON `{"ok":true}` under the route's JSON/no-cache headers; there is no action-specific failure branch or error payload. No helper function is called by this case. The Android equivalent is to clear only the local session and in-memory identity, then route to the later login screen; this is a migration requirement, not an implementation.
 
+## Authentication action contracts
+
+The table records each `auth.php` action's required/optional business input, guard and effect. Exact method/CSRF/lock behavior, error text/status, success shape, indirect helpers and Android requirements are in [the dedicated audit](AUTHENTICATION_AUDIT_REPORT.md#individual-action-contracts). Every action accepts a JSON body through any HTTP method; only outlet actions verify body CSRF. POST takes `usersLock()` except for login/check/logout. `auth.php:18-31` is the shared route source. `AUDITED` means PHP source behavior documented, **not** Android behavior implemented.
+
+| Action and source | Input and validation | Guard and storage effect | Success; Android contract |
+|---|---|---|---|
+| `login` `33-139` | Trimmed username/password; optional org tab; SAP 6–12 digits or exact/unambiguous-case officer lookup | Public; read profile+master or officer file; legacy plaintext may rehash/write before org mismatch | User+CSRF session; preserve distinct local account paths |
+| `check` `140-170` | Selector only | Session; outlet rejoined/rebuilt, officer file reloaded with six fields refreshed; missing account destroys session | `ok,user,csrf` or `ok:false`; revalidate local identity |
+| `logout` `171-175` | Selector only | Public; destroys PHP session; no DB/file write | `ok:true`; clear local identity |
+| `list_users` `176-212` | Selector only | Super/Zone Officer; `canManage` filters officers; decrypt view only through `canViewPassword`; file read | `ok,users`; enforce list scope and password visibility |
+| `list_sales_areas` `213-225` | Selector only | Super/Zone Officer; mapping and `officerRegions`; no write | `ok,sales_areas`; local mapping |
+| `update_user_access` `226-351` | Required username/role; optional org/filter/zones/regions/label/columns/pages/contact/new username; role/zone/child checks | Super; HPCL super constrained to manageable HPCL role-zone target; officer file write; rename also commits dynamic MySQL username-column updates first | `ok:true`; atomic local reference updates |
+| `update_user_password` `352-378` | Username/password required; new password ≥8 bytes | Super/Zone Officer, `canManage`; hashes/seals and writes officer file | `ok:true`; local reset and view policy |
+| `change_password` `379-414` | Current/new required; current verifies, new ≥8 bytes and different | Own active officer or outlet; officer file or outlet table update | `ok:true`; separate local store paths |
+| `update_contact` `415-428` | Optional email/mobile; normalize/validate/unique | Own officer only; officer file write, outlet denied | `ok,email,mobile`; local contact update |
+| `add_user` `429-505` | Required username/password/role/label; optional org/filter/zones/regions/columns; username/role/password checks | Super; HPCL super creates HPCL zone only; officer file write | `ok:true`; organized Zone Officer account |
+| `add_regional_officer` `506-566` | Required username/password/label/region/sales areas; optional parent for super | Super or parent Zone Officer; region+area scope; officer file write | `ok:true`; preserve parent hierarchy |
+| `update_regional_officer` `567-613` | Required target/region/sales areas; optional parent/label/contact/pages/new username | Super or managing Zone Officer; officer file write, possible MySQL rename | `ok:true`; local hierarchy/reference update |
+| `delete_user` `614-644` | Required username; no self/child deletion | Super or managing Zone Officer; removes officer file entry, preserves orders | `ok:true`; retain historical records |
+| `add_super_admin` `645-691` | Required username/password/label/org; optional states; case-insensitive duplicate check | Rohan super only; officer file write | `ok:true`; distinguish super orgs |
+| `update_super_admin` `692-711` | Required target; optional label/pages/states/all_states | Rohan super only; officer file write | `ok:true`; keep approval states separate from geography |
+| `import_officers` `712-719,1417-1543` | Rows 1–600; optional dry_run/org/areas_by; row validation and parent matching | Super; final officer file write only outside dry run if created | `ok,dry_run,org,counts,results`; local batch preview/import |
+| `convert_to_sales_areas` `720-728,1391-1415` | Selector only | Super; reads outlet districts; writes officer file only if converted | `ok,converted,how,left`; idempotent local migration |
+| `outlet_list` `729-740,812-856` | Optional q/ro/zo/page/per | Super or HPCL Zone Officer + CSRF; scoped profile/master reads | Counts/rows/regions/metadata; scoped local listing |
+| `outlet_lookup` `729-740,857-866` | Required 6–12-digit sap_code | Same guard; reads master/profile existence | Outlet/exists/suggested; local linkage check |
+| `outlet_add` `729-740,867-885` | Required linked SAP; optional label/password | Same guard; INSERT profile with bcrypt cost 8 | `ok:true`; separate local profile |
+| `outlet_update` `729-740,886-904` | Required linked existing SAP; optional label/password ≥8 | Same guard; label UPDATE may precede password validation/UPDATE | `ok:true`; record partial-write source behavior |
+| `outlet_delete` `729-740,905-933` | Either all+filters or valid sap_codes | Same guard; scoped joined DELETE profile only | `ok,deleted`; retain master/outlet orders |
+| `outlet_import` `729-740,934-989` | ≤500 rows/slice with sap/name/idx; optional reset | Same guard; one transaction per slice; create/reset/keep | Per-slice counts and missing/outside/bad; local import parity |
+
 ## PHP actions
 
 | File:line | Action | Dispatched helper | Status |
 |---|---|---|---|
-| `auth.php:33` | `login` | `see dispatch body` | NEEDS_CLARIFICATION |
-| `auth.php:140` | `check` | `see dispatch body` | NEEDS_CLARIFICATION |
+| `auth.php:33` | `login` | `see dispatch body` | AUDITED |
+| `auth.php:140` | `check` | `see dispatch body` | AUDITED |
 | `auth.php:171` | `logout` | `see dispatch body` | AUDITED |
-| `auth.php:176` | `list_users` | `see dispatch body` | NEEDS_CLARIFICATION |
-| `auth.php:213` | `list_sales_areas` | `see dispatch body` | NEEDS_CLARIFICATION |
-| `auth.php:226` | `update_user_access` | `see dispatch body` | NEEDS_CLARIFICATION |
-| `auth.php:352` | `update_user_password` | `see dispatch body` | NEEDS_CLARIFICATION |
-| `auth.php:379` | `change_password` | `see dispatch body` | NEEDS_CLARIFICATION |
-| `auth.php:415` | `update_contact` | `see dispatch body` | NEEDS_CLARIFICATION |
-| `auth.php:429` | `add_user` | `see dispatch body` | NEEDS_CLARIFICATION |
-| `auth.php:506` | `add_regional_officer` | `see dispatch body` | NEEDS_CLARIFICATION |
-| `auth.php:567` | `update_regional_officer` | `see dispatch body` | NEEDS_CLARIFICATION |
-| `auth.php:614` | `delete_user` | `see dispatch body` | NEEDS_CLARIFICATION |
-| `auth.php:645` | `add_super_admin` | `see dispatch body` | NEEDS_CLARIFICATION |
-| `auth.php:692` | `update_super_admin` | `see dispatch body` | NEEDS_CLARIFICATION |
-| `auth.php:712` | `import_officers` | `see dispatch body` | NEEDS_CLARIFICATION |
-| `auth.php:720` | `convert_to_sales_areas` | `see dispatch body` | NEEDS_CLARIFICATION |
-| `auth.php:729` | `outlet_list` | `see dispatch body` | NEEDS_CLARIFICATION |
-| `auth.php:730` | `outlet_lookup` | `see dispatch body` | NEEDS_CLARIFICATION |
-| `auth.php:731` | `outlet_add` | `see dispatch body` | NEEDS_CLARIFICATION |
-| `auth.php:732` | `outlet_update` | `see dispatch body` | NEEDS_CLARIFICATION |
-| `auth.php:733` | `outlet_delete` | `see dispatch body` | NEEDS_CLARIFICATION |
-| `auth.php:734` | `outlet_import` | `see dispatch body` | NEEDS_CLARIFICATION |
+| `auth.php:176` | `list_users` | `see dispatch body` | AUDITED |
+| `auth.php:213` | `list_sales_areas` | `see dispatch body` | AUDITED |
+| `auth.php:226` | `update_user_access` | `see dispatch body` | AUDITED |
+| `auth.php:352` | `update_user_password` | `see dispatch body` | AUDITED |
+| `auth.php:379` | `change_password` | `see dispatch body` | AUDITED |
+| `auth.php:415` | `update_contact` | `see dispatch body` | AUDITED |
+| `auth.php:429` | `add_user` | `see dispatch body` | AUDITED |
+| `auth.php:506` | `add_regional_officer` | `see dispatch body` | AUDITED |
+| `auth.php:567` | `update_regional_officer` | `see dispatch body` | AUDITED |
+| `auth.php:614` | `delete_user` | `see dispatch body` | AUDITED |
+| `auth.php:645` | `add_super_admin` | `see dispatch body` | AUDITED |
+| `auth.php:692` | `update_super_admin` | `see dispatch body` | AUDITED |
+| `auth.php:712` | `import_officers` | `see dispatch body` | AUDITED |
+| `auth.php:720` | `convert_to_sales_areas` | `see dispatch body` | AUDITED |
+| `auth.php:729` | `outlet_list` | `see dispatch body` | AUDITED |
+| `auth.php:730` | `outlet_lookup` | `see dispatch body` | AUDITED |
+| `auth.php:731` | `outlet_add` | `see dispatch body` | AUDITED |
+| `auth.php:732` | `outlet_update` | `see dispatch body` | AUDITED |
+| `auth.php:733` | `outlet_delete` | `see dispatch body` | AUDITED |
+| `auth.php:734` | `outlet_import` | `see dispatch body` | AUDITED |
 | `orders.php:1062` | `public_invoice` | early public branch | NEEDS_CLARIFICATION |
 | `orders.php:1097` | `meta` | `ordMeta` | NEEDS_CLARIFICATION |
 | `orders.php:1098` | `outlet` | `ordOutletLookup` | NEEDS_CLARIFICATION |
@@ -124,70 +154,70 @@ For **each of the other 86 action rows below**, review its dispatch branch and t
 
 | File:line | Helper | Status |
 |---|---|---|
-| `auth.php:752` | `outletActor` | NEEDS_CLARIFICATION |
-| `auth.php:766` | `outletZoneOfficers` | NEEDS_CLARIFICATION |
-| `auth.php:778` | `outletScopeSql` | NEEDS_CLARIFICATION |
-| `auth.php:785` | `outletRegions` | NEEDS_CLARIFICATION |
-| `auth.php:792` | `outletLike` | NEEDS_CLARIFICATION |
-| `auth.php:795` | `outletCheckOutlet` | NEEDS_CLARIFICATION |
-| `auth.php:805` | `outletApi` | NEEDS_CLARIFICATION |
-| `auth.php:990` | `userLevel` | NEEDS_CLARIFICATION |
-| `auth.php:995` | `denyJson` | NEEDS_CLARIFICATION |
-| `auth.php:1005` | `actor` | NEEDS_CLARIFICATION |
-| `auth.php:1021` | `cleanContact` | NEEDS_CLARIFICATION |
-| `auth.php:1042` | `applyPages` | NEEDS_CLARIFICATION |
-| `auth.php:1047` | `applyContact` | NEEDS_CLARIFICATION |
-| `auth.php:1059` | `renameUser` | NEEDS_CLARIFICATION |
-| `auth.php:1090` | `childrenOf` | NEEDS_CLARIFICATION |
-| `auth.php:1097` | `isHpclSuper` | NEEDS_CLARIFICATION |
-| `auth.php:1102` | `canManage` | NEEDS_CLARIFICATION |
-| `auth.php:1115` | `officerRegions` | NEEDS_CLARIFICATION |
-| `auth.php:1126` | `regionSalesAreas` | NEEDS_CLARIFICATION |
-| `auth.php:1133` | `saKey` | NEEDS_CLARIFICATION |
-| `auth.php:1138` | `cleanRegional` | NEEDS_CLARIFICATION |
-| `auth.php:1151` | `passKey` | NEEDS_CLARIFICATION |
-| `auth.php:1156` | `passSeal` | NEEDS_CLARIFICATION |
-| `auth.php:1165` | `passView` | NEEDS_CLARIFICATION |
-| `auth.php:1176` | `setPassword` | NEEDS_CLARIFICATION |
-| `auth.php:1188` | `canViewPassword` | NEEDS_CLARIFICATION |
-| `auth.php:1194` | `writeUsers` | NEEDS_CLARIFICATION |
-| `auth.php:1203` | `validateOrg` | NEEDS_CLARIFICATION |
-| `auth.php:1213` | `sheetZones` | NEEDS_CLARIFICATION |
-| `auth.php:1218` | `zoneRegions` | NEEDS_CLARIFICATION |
+| `auth.php:752` | `outletActor` | AUDITED |
+| `auth.php:766` | `outletZoneOfficers` | AUDITED |
+| `auth.php:778` | `outletScopeSql` | AUDITED |
+| `auth.php:785` | `outletRegions` | AUDITED |
+| `auth.php:792` | `outletLike` | AUDITED |
+| `auth.php:795` | `outletCheckOutlet` | AUDITED |
+| `auth.php:805` | `outletApi` | AUDITED |
+| `auth.php:990` | `userLevel` | AUDITED |
+| `auth.php:995` | `denyJson` | AUDITED |
+| `auth.php:1005` | `actor` | AUDITED |
+| `auth.php:1021` | `cleanContact` | AUDITED |
+| `auth.php:1042` | `applyPages` | AUDITED |
+| `auth.php:1047` | `applyContact` | AUDITED |
+| `auth.php:1059` | `renameUser` | AUDITED |
+| `auth.php:1090` | `childrenOf` | AUDITED |
+| `auth.php:1097` | `isHpclSuper` | AUDITED |
+| `auth.php:1102` | `canManage` | AUDITED |
+| `auth.php:1115` | `officerRegions` | AUDITED |
+| `auth.php:1126` | `regionSalesAreas` | AUDITED |
+| `auth.php:1133` | `saKey` | AUDITED |
+| `auth.php:1138` | `cleanRegional` | AUDITED |
+| `auth.php:1151` | `passKey` | AUDITED |
+| `auth.php:1156` | `passSeal` | AUDITED |
+| `auth.php:1165` | `passView` | AUDITED |
+| `auth.php:1176` | `setPassword` | AUDITED |
+| `auth.php:1188` | `canViewPassword` | AUDITED |
+| `auth.php:1194` | `writeUsers` | AUDITED |
+| `auth.php:1203` | `validateOrg` | AUDITED |
+| `auth.php:1213` | `sheetZones` | AUDITED |
+| `auth.php:1218` | `zoneRegions` | AUDITED |
 | `auth.php:1228` | `validateRos` | NEEDS_CLARIFICATION |
-| `auth.php:1237` | `userZones` | NEEDS_CLARIFICATION |
-| `auth.php:1245` | `userSheetZones` | NEEDS_CLARIFICATION |
-| `auth.php:1253` | `regionSheetZone` | NEEDS_CLARIFICATION |
-| `auth.php:1257` | `regionPortalZone` | NEEDS_CLARIFICATION |
-| `auth.php:1268` | `cleanZones` | NEEDS_CLARIFICATION |
+| `auth.php:1237` | `userZones` | AUDITED |
+| `auth.php:1245` | `userSheetZones` | AUDITED |
+| `auth.php:1253` | `regionSheetZone` | AUDITED |
+| `auth.php:1257` | `regionPortalZone` | AUDITED |
+| `auth.php:1268` | `cleanZones` | AUDITED |
 | `auth.php:1294` | `superScopeFields` | NEEDS_CLARIFICATION |
-| `auth.php:1299` | `cleanStates` | NEEDS_CLARIFICATION |
-| `auth.php:1306` | `superLimit` | NEEDS_CLARIFICATION |
+| `auth.php:1299` | `cleanStates` | AUDITED |
+| `auth.php:1306` | `superLimit` | AUDITED |
 | `auth.php:1310` | `genPassword` | NEEDS_CLARIFICATION |
-| `auth.php:1319` | `genUsername` | NEEDS_CLARIFICATION |
-| `auth.php:1330` | `saTokens` | NEEDS_CLARIFICATION |
-| `auth.php:1341` | `salesAreasFor` | NEEDS_CLARIFICATION |
-| `auth.php:1362` | `legacySalesAreas` | NEEDS_CLARIFICATION |
-| `auth.php:1391` | `convertToSalesAreas` | NEEDS_CLARIFICATION |
-| `auth.php:1417` | `importOfficers` | NEEDS_CLARIFICATION |
-| `auth.php:1545` | `var_export_short` | NEEDS_CLARIFICATION |
-| `users-store.php:16` | `usersPath` | NEEDS_CLARIFICATION |
-| `users-store.php:19` | `usersWorkDir` | NEEDS_CLARIFICATION |
-| `users-store.php:28` | `usersLock` | NEEDS_CLARIFICATION |
-| `users-store.php:36` | `usersParse` | NEEDS_CLARIFICATION |
-| `users-store.php:46` | `usersLoad` | NEEDS_CLARIFICATION |
-| `users-store.php:68` | `usersWrite` | NEEDS_CLARIFICATION |
-| `users-store.php:90` | `usersWriteFail` | NEEDS_CLARIFICATION |
-| `outlet-users.php:23` | `ouDb` | NEEDS_CLARIFICATION |
-| `outlet-users.php:35` | `ouEnsure` | NEEDS_CLARIFICATION |
-| `outlet-users.php:53` | `ouFind` | NEEDS_CLARIFICATION |
-| `outlet-users.php:63` | `ouIsProfile` | NEEDS_CLARIFICATION |
-| `outlet-users.php:76` | `ouSession` | NEEDS_CLARIFICATION |
-| `outlet-users.php:94` | `ouSessionIsOutlet` | NEEDS_CLARIFICATION |
-| `outlet-users.php:101` | `ouRuleName` | NEEDS_CLARIFICATION |
-| `outlet-users.php:107` | `ouSuffix` | NEEDS_CLARIFICATION |
-| `outlet-users.php:113` | `ouRulePassword` | NEEDS_CLARIFICATION |
-| `outlet-users.php:118` | `ouHash` | NEEDS_CLARIFICATION |
+| `auth.php:1319` | `genUsername` | AUDITED |
+| `auth.php:1330` | `saTokens` | AUDITED |
+| `auth.php:1341` | `salesAreasFor` | AUDITED |
+| `auth.php:1362` | `legacySalesAreas` | AUDITED |
+| `auth.php:1391` | `convertToSalesAreas` | AUDITED |
+| `auth.php:1417` | `importOfficers` | AUDITED |
+| `auth.php:1545` | `var_export_short` | AUDITED |
+| `users-store.php:16` | `usersPath` | AUDITED |
+| `users-store.php:19` | `usersWorkDir` | AUDITED |
+| `users-store.php:28` | `usersLock` | AUDITED |
+| `users-store.php:36` | `usersParse` | AUDITED |
+| `users-store.php:46` | `usersLoad` | AUDITED |
+| `users-store.php:68` | `usersWrite` | AUDITED |
+| `users-store.php:90` | `usersWriteFail` | AUDITED |
+| `outlet-users.php:23` | `ouDb` | AUDITED |
+| `outlet-users.php:35` | `ouEnsure` | AUDITED |
+| `outlet-users.php:53` | `ouFind` | AUDITED |
+| `outlet-users.php:63` | `ouIsProfile` | AUDITED |
+| `outlet-users.php:76` | `ouSession` | AUDITED |
+| `outlet-users.php:94` | `ouSessionIsOutlet` | AUDITED |
+| `outlet-users.php:101` | `ouRuleName` | AUDITED |
+| `outlet-users.php:107` | `ouSuffix` | AUDITED |
+| `outlet-users.php:113` | `ouRulePassword` | AUDITED |
+| `outlet-users.php:118` | `ouHash` | AUDITED |
 | `orders.php:107` | `ordFail` | NEEDS_CLARIFICATION |
 | `orders.php:113` | `ordOut` | NEEDS_CLARIFICATION |
 | `orders.php:118` | `ordDB` | NEEDS_CLARIFICATION |
@@ -423,8 +453,8 @@ For **each of the other 86 action rows below**, review its dispatch branch and t
 | `mis-xlsx.php:500` | `misSheet` | NEEDS_CLARIFICATION |
 | `mis-xlsx.php:510` | `misBuildCache` | NEEDS_CLARIFICATION |
 | `mis-xlsx.php:592` | `misRecText` | NEEDS_CLARIFICATION |
-| `regions.php:175` | `approvalStateList` | NEEDS_CLARIFICATION |
-| `regions.php:183` | `approvalStates` | NEEDS_CLARIFICATION |
+| `regions.php:175` | `approvalStateList` | AUDITED |
+| `regions.php:183` | `approvalStates` | AUDITED |
 | `change-log.php:11` | `chgEnsure` | NEEDS_CLARIFICATION |
 | `change-log.php:31` | `chgRole` | NEEDS_CLARIFICATION |
 | `change-log.php:40` | `chgAdd` | NEEDS_CLARIFICATION |

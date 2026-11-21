@@ -11,7 +11,23 @@
 | HPCL Level 4 officer | HPCL hierarchy designation in `ORD_HPCL_DESIG` | Exact effective account scope and privileges require full source review. |
 | Outlet | `portal_outlet_users`, `outlet=true`, one SAP number | Derived zone/region/sales area from outlet record on login/check; `ordScope` limits to its own SAP. `ordAwaitCond` explicitly returns false for an outlet account. |
 
-This is not a complete permission matrix. The 18 page IDs in `auth.php` are visibility settings, not a substitute for server-side authorization. `auth.php` account mutations, `outletApi`, `api.php` pending/MIS access, `misScopeSql`, all `orders.php` guards, and any GET mutation behavior still need action-by-action review. The absent live `users.php` prevents verifying live per-user page and approval-state grants. Every unlisted permission remains `NEEDS_CLARIFICATION`.
+This is not a complete portal-wide permission matrix. The 18 page IDs in `auth.php` are visibility settings, not a substitute for server-side authorization. Authentication/account actions are audited below; `api.php` pending/MIS access, `misScopeSql`, and all `orders.php` action guards still need action-by-action review. The absent live `users.php` prevents verifying live per-user page and approval-state grants. Every unlisted permission remains `NEEDS_CLARIFICATION`.
+
+## Authentication and account management permissions (source audited)
+
+The `auth.php` action guards were reviewed in [AUTHENTICATION_AUDIT_REPORT.md](AUTHENTICATION_AUDIT_REPORT.md). `actor()` re-reads the current officer file for management requests; `role`, `org`, `level`, `created_by` and target scope govern these routes. `hidden_pages` only hides browser navigation. No Android permission service exists yet.
+
+| Actor | Read officers / sales areas | Create/edit/reset/delete officers | Super-admin management | Outlet-profile management | Own profile |
+|---|---|---|---|---|---|
+| Rohan Super Admin (`superadmin`, org not HPCL) | All officers, all mapped regions | Any manageable officer; cannot delete self or a parent with children | Add/edit super admins, including own label/states; own page hiding ignored | All regions; CSRF required | Change own password/contact |
+| HPCL Super Admin (`superadmin`, org HPCL) | HPCL role-zone accounts; all mapped regions because `superLimit()` returns null | HPCL role-zone accounts only; creates HPCL Zone Officers; may add Regional Officers under manageable HPCL parent | Cannot add/edit super admins | All regions in current code; CSRF required | Change own password/contact |
+| Rohan Zone Officer (`role=zone`, `org=rohan`, effective level zone) | Created Regional Officers; own mapped regions | Own `created_by` Regional Officers only | None | Denied | Change own password/contact |
+| HPCL Zone Officer (`role=zone`, `org=hpcl`, effective level zone) | Created Regional Officers; own mapped regions | Own `created_by` Regional Officers only | None | Profiles in `officerRegions(actor)`; CSRF required | Change own password/contact |
+| Regional Officer (either org) | Management routes denied by `actor('any')` | None | None | Denied | Change own password/contact |
+| Outlet profile (`outlet=true`, one SAP) | Officer management denied; scope comes from joined master outlet | None | None | Denied | Change own password in profile table; contact edit denied |
+| Guest | Management routes denied; `login`, `check`, `logout` callable | None | None | Denied | None |
+
+`canManage()` handles target authorization for listing, reset and deletion. `update_user_access` and `update_regional_officer` add route-specific checks; e.g. a continuing super admin/Regional Officer edit in `update_user_access` ignores role/geography changes. A Rohan Super Admin can reset their own password through `update_user_password` because no self-target check exists there, while `canViewPassword()` never exposes their own readable view. Outlet manager routes use a region predicate on the joined `portal_outlets.ro`; a profile with no master row cannot be looked up/updated by those routes even if its profile row remains. The source has no global CSRF or HTTP-method guard for officer actions. All statements here are about source guards, not production account grants (live `users.php` is missing).
 
 ## Verified order decision eligibility
 

@@ -1,32 +1,32 @@
 # PHP to TypeScript mapping — working inventory
 
-Each row is a distinct endpoint/action pair to evaluate for a local Android service. There are 87 rows, including `orders.public_invoice`; repeated action words at different endpoints are separate contracts. `auth.logout` is `AUDITED` with a full contract in `SOURCE_CODE_AUDIT.md`; the other 86 rows remain `NEEDS_CLARIFICATION`. The proposed TypeScript service and test paths are placeholders, and the selected contract fragments below are incomplete. No action has a working Android business implementation or a `client/src/` service. The 305 helper statuses are tracked in `SOURCE_CODE_AUDIT.md`.
+Each row is a distinct endpoint/action pair to evaluate for a local Android service. There are 87 rows, including `orders.public_invoice`; repeated action words at different endpoints are separate contracts. The 23 `auth.php` source contracts are `AUDITED` in [AUTHENTICATION_AUDIT_REPORT.md](AUTHENTICATION_AUDIT_REPORT.md) and summarized in `SOURCE_CODE_AUDIT.md`; the other 64 actions remain `NEEDS_CLARIFICATION`. TypeScript service names and test paths are proposed migration targets, not existing code. No action has a working Android business implementation or a `client/src/` service. The 305 helper statuses are tracked in `SOURCE_CODE_AUDIT.md`.
 
 | PHP location | Action | PHP helper | Planned TypeScript service | Automated test | Status |
 |---|---|---|---|---|---|
-| `auth.php:33` | `login` | `see dispatch body` | `auth.login` | `tests/regression/auth/login.test.ts` | NEEDS_CLARIFICATION |
-| `auth.php:140` | `check` | `see dispatch body` | `auth.check` | `tests/regression/auth/check.test.ts` | NEEDS_CLARIFICATION |
-| `auth.php:171` | `logout` | `see dispatch body` | `auth.logout` | `tests/regression/auth/logout.test.ts` | AUDITED |
-| `auth.php:176` | `list_users` | `see dispatch body` | `auth.list_users` | `tests/regression/auth/list_users.test.ts` | NEEDS_CLARIFICATION |
-| `auth.php:213` | `list_sales_areas` | `see dispatch body` | `auth.list_sales_areas` | `tests/regression/auth/list_sales_areas.test.ts` | NEEDS_CLARIFICATION |
-| `auth.php:226` | `update_user_access` | `see dispatch body` | `auth.update_user_access` | `tests/regression/auth/update_user_access.test.ts` | NEEDS_CLARIFICATION |
-| `auth.php:352` | `update_user_password` | `see dispatch body` | `auth.update_user_password` | `tests/regression/auth/update_user_password.test.ts` | NEEDS_CLARIFICATION |
-| `auth.php:379` | `change_password` | `see dispatch body` | `auth.change_password` | `tests/regression/auth/change_password.test.ts` | NEEDS_CLARIFICATION |
-| `auth.php:415` | `update_contact` | `see dispatch body` | `auth.update_contact` | `tests/regression/auth/update_contact.test.ts` | NEEDS_CLARIFICATION |
-| `auth.php:429` | `add_user` | `see dispatch body` | `auth.add_user` | `tests/regression/auth/add_user.test.ts` | NEEDS_CLARIFICATION |
-| `auth.php:506` | `add_regional_officer` | `see dispatch body` | `auth.add_regional_officer` | `tests/regression/auth/add_regional_officer.test.ts` | NEEDS_CLARIFICATION |
-| `auth.php:567` | `update_regional_officer` | `see dispatch body` | `auth.update_regional_officer` | `tests/regression/auth/update_regional_officer.test.ts` | NEEDS_CLARIFICATION |
-| `auth.php:614` | `delete_user` | `see dispatch body` | `auth.delete_user` | `tests/regression/auth/delete_user.test.ts` | NEEDS_CLARIFICATION |
-| `auth.php:645` | `add_super_admin` | `see dispatch body` | `auth.add_super_admin` | `tests/regression/auth/add_super_admin.test.ts` | NEEDS_CLARIFICATION |
-| `auth.php:692` | `update_super_admin` | `see dispatch body` | `auth.update_super_admin` | `tests/regression/auth/update_super_admin.test.ts` | NEEDS_CLARIFICATION |
-| `auth.php:712` | `import_officers` | `see dispatch body` | `auth.import_officers` | `tests/regression/auth/import_officers.test.ts` | NEEDS_CLARIFICATION |
-| `auth.php:720` | `convert_to_sales_areas` | `see dispatch body` | `auth.convert_to_sales_areas` | `tests/regression/auth/convert_to_sales_areas.test.ts` | NEEDS_CLARIFICATION |
-| `auth.php:729` | `outlet_list` | `see dispatch body` | `auth.outlet_list` | `tests/regression/auth/outlet_list.test.ts` | NEEDS_CLARIFICATION |
-| `auth.php:730` | `outlet_lookup` | `see dispatch body` | `auth.outlet_lookup` | `tests/regression/auth/outlet_lookup.test.ts` | NEEDS_CLARIFICATION |
-| `auth.php:731` | `outlet_add` | `see dispatch body` | `auth.outlet_add` | `tests/regression/auth/outlet_add.test.ts` | NEEDS_CLARIFICATION |
-| `auth.php:732` | `outlet_update` | `see dispatch body` | `auth.outlet_update` | `tests/regression/auth/outlet_update.test.ts` | NEEDS_CLARIFICATION |
-| `auth.php:733` | `outlet_delete` | `see dispatch body` | `auth.outlet_delete` | `tests/regression/auth/outlet_delete.test.ts` | NEEDS_CLARIFICATION |
-| `auth.php:734` | `outlet_import` | `see dispatch body` | `auth.outlet_import` | `tests/regression/auth/outlet_import.test.ts` | NEEDS_CLARIFICATION |
+| `auth.php:33` | `login` | `usersLoad`, `ouFind`, `ouSession`, `ouIsProfile`, `userLevel`, `writeUsers` | `auth.login` | `tests/regression/auth/login.test.ts` | AUDITED |
+| `auth.php:140` | `check` | `ouSessionIsOutlet`, `ouFind`, `ouSession`, `usersLoad`, `userLevel` | `auth.check` | `tests/regression/auth/check.test.ts` | AUDITED |
+| `auth.php:171` | `logout` | PHP session only | `auth.logout` | `tests/regression/auth/logout.test.ts` | AUDITED |
+| `auth.php:176` | `list_users` | `actor`, `canManage`, `canViewPassword`, `passView`, `approvalStates`, zone helpers | `auth.list_users` | `tests/regression/auth/list_users.test.ts` | AUDITED |
+| `auth.php:213` | `list_sales_areas` | `actor`, `superLimit`, `officerRegions`, `regionSalesAreas` | `auth.list_sales_areas` | `tests/regression/auth/list_sales_areas.test.ts` | AUDITED |
+| `auth.php:226` | `update_user_access` | `actor`, `cleanZones`, `applyPages`, `childrenOf`, `cleanContact`, `renameUser`, `writeUsers` | `auth.update_user_access` | `tests/regression/auth/update_user_access.test.ts` | AUDITED |
+| `auth.php:352` | `update_user_password` | `actor`, `canManage`, `setPassword`, `writeUsers` | `auth.update_user_password` | `tests/regression/auth/update_user_password.test.ts` | AUDITED |
+| `auth.php:379` | `change_password` | `ouSessionIsOutlet`, `ouHash`, `passSeal`, `setPassword`, `writeUsers` | `auth.change_password` | `tests/regression/auth/change_password.test.ts` | AUDITED |
+| `auth.php:415` | `update_contact` | `ouSessionIsOutlet`, `cleanContact`, `applyContact`, `writeUsers` | `auth.update_contact` | `tests/regression/auth/update_contact.test.ts` | AUDITED |
+| `auth.php:429` | `add_user` | `actor`, `cleanZones`, `validateOrg`, `setPassword`, `writeUsers` | `auth.add_user` | `tests/regression/auth/add_user.test.ts` | AUDITED |
+| `auth.php:506` | `add_regional_officer` | `actor`, `canManage`, `cleanRegional`, zone helpers, `setPassword`, `writeUsers` | `auth.add_regional_officer` | `tests/regression/auth/add_regional_officer.test.ts` | AUDITED |
+| `auth.php:567` | `update_regional_officer` | `actor`, `canManage`, `cleanRegional`, `cleanContact`, `applyPages`, `renameUser` | `auth.update_regional_officer` | `tests/regression/auth/update_regional_officer.test.ts` | AUDITED |
+| `auth.php:614` | `delete_user` | `actor`, `canManage`, `childrenOf`, `writeUsers` | `auth.delete_user` | `tests/regression/auth/delete_user.test.ts` | AUDITED |
+| `auth.php:645` | `add_super_admin` | `actor`, `cleanStates`, `setPassword`, `writeUsers` | `auth.add_super_admin` | `tests/regression/auth/add_super_admin.test.ts` | AUDITED |
+| `auth.php:692` | `update_super_admin` | `actor`, `applyPages`, `cleanStates`, `writeUsers` | `auth.update_super_admin` | `tests/regression/auth/update_super_admin.test.ts` | AUDITED |
+| `auth.php:712` | `import_officers` | `actor`, `importOfficers`, mapping/password helpers | `auth.import_officers` | `tests/regression/auth/import_officers.test.ts` | AUDITED |
+| `auth.php:720` | `convert_to_sales_areas` | `actor`, `convertToSalesAreas`, `legacySalesAreas` | `auth.convert_to_sales_areas` | `tests/regression/auth/convert_to_sales_areas.test.ts` | AUDITED |
+| `auth.php:729` | `outlet_list` | `outletActor`, `outletApi`, scope/view helpers | `auth.outlet_list` | `tests/regression/auth/outlet_list.test.ts` | AUDITED |
+| `auth.php:730` | `outlet_lookup` | `outletActor`, `outletApi`, `outletCheckOutlet` | `auth.outlet_lookup` | `tests/regression/auth/outlet_lookup.test.ts` | AUDITED |
+| `auth.php:731` | `outlet_add` | `outletActor`, `outletApi`, `ouRulePassword`, `ouHash`, `passSeal` | `auth.outlet_add` | `tests/regression/auth/outlet_add.test.ts` | AUDITED |
+| `auth.php:732` | `outlet_update` | `outletActor`, `outletApi`, `ouHash`, `passSeal` | `auth.outlet_update` | `tests/regression/auth/outlet_update.test.ts` | AUDITED |
+| `auth.php:733` | `outlet_delete` | `outletActor`, `outletApi`, `outletScopeSql` | `auth.outlet_delete` | `tests/regression/auth/outlet_delete.test.ts` | AUDITED |
+| `auth.php:734` | `outlet_import` | `outletActor`, `outletApi`, `ouRulePassword`, `ouHash`, `passSeal` | `auth.outlet_import` | `tests/regression/auth/outlet_import.test.ts` | AUDITED |
 | `orders.php:1062` | `public_invoice` | early public branch | `orders.public_invoice` | `tests/regression/orders/public_invoice.test.ts` | NEEDS_CLARIFICATION |
 | `orders.php:1097` | `meta` | `ordMeta` | `orders.meta` | `tests/regression/orders/meta.test.ts` | NEEDS_CLARIFICATION |
 | `orders.php:1098` | `outlet` | `ordOutletLookup` | `orders.outlet` | `tests/regression/orders/outlet.test.ts` | NEEDS_CLARIFICATION |
@@ -104,5 +104,5 @@ Each row is a distinct endpoint/action pair to evaluate for a local Android serv
 | `orders.return_request`, `orders.return_decide` | Order/return ID, reason, credit note, decision/comment | Visible approved delivered order; decision permission and scope; no nonadmin self-decision | Read order/returns/permissions; insert/update return and event | Order/return; 403/404/409/422 | Delivery, duplicate requests, self-decision, state scope, permission |
 | `mis.get`, `mis.ver` | Full action inputs still pending | `misScopeSql`; full action guard pending | `misSync` reads orders/items/MIS and conditionally updates MIS and revision | Full action return/error contract pending | Stale deletion, duplicate prevention, no-op revision, scope |
 
-All other rows still require complete source review. Listed TypeScript names and test paths are planned, not implemented.
+The 23 authentication contracts are documented in [AUTHENTICATION_AUDIT_REPORT.md](AUTHENTICATION_AUDIT_REPORT.md); the short auth fragments above are supplementary. The other 64 action rows still require complete source review. Listed TypeScript names and test paths are planned, not implemented.
 
