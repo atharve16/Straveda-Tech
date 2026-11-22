@@ -1,6 +1,6 @@
 ﻿# Rohan Energy Android migration — work completed so far
 
-This folder records the current state of the offline Android migration. **The Android application is not complete or installable.** The supplied PHP portal outside `client/` has not been modified.
+**Current submission:** See [implementation checklist](IMPLEMENTATION_CHECKLIST.md), [technical documentation](PROJECT_DOCUMENTATION.md), [testing documentation](TESTING_DOCUMENTATION.md), [user guide](USER_GUIDE.md) and [project report](STRAVEDA_PROJECT_REPORT.md). The sections below record the earlier foundation phase; their status statements are superseded by those submission documents. The supplied PHP portal outside `client/` has not been modified.
 
 ## What exists
 

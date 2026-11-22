@@ -2,7 +2,7 @@ const development = process.env.EAS_BUILD_PROFILE === 'development' || (!process
 
 module.exports = {
   expo: {
-    name: 'Rohan Energy',
+    name: 'STRAVEDA',
     slug: 'rohan-energy-offline',
     scheme: 'rohanenergy',
     version: '0.1.0',

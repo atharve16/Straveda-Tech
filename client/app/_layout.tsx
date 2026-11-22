@@ -23,6 +23,15 @@ async function initialize(db: SQLiteDatabase) {
   if (required?.count !== 4) throw new Error('Demo database is incomplete');
   const foreignKeys = await db.getAllAsync('PRAGMA foreign_key_check');
   if (foreignKeys.length) throw new Error('Demo database relationships are invalid');
+  await db.withExclusiveTransactionAsync(async tx => {
+    await tx.execAsync(`CREATE TABLE IF NOT EXISTS app_pending (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,d TEXT NOT NULL,sap TEXT NOT NULL,outlet TEXT NOT NULL,
+      item TEXT NOT NULL,ea REAL NOT NULL CHECK(ea>0),status TEXT NOT NULL CHECK(status IN ('pending','approved','rejected')),
+      submitted_by TEXT NOT NULL,zone TEXT NOT NULL,ro TEXT NOT NULL,state TEXT NOT NULL,sales_area TEXT NOT NULL,
+      reason TEXT,decided_by TEXT,decided_at TEXT);
+      CREATE UNIQUE INDEX IF NOT EXISTS app_pending_active_once ON app_pending(submitted_by,d,sap,item,ea) WHERE status='pending';
+      CREATE TABLE IF NOT EXISTS app_history (id INTEGER PRIMARY KEY AUTOINCREMENT,actor TEXT NOT NULL,action TEXT NOT NULL,detail TEXT NOT NULL,at TEXT NOT NULL);`);
+  });
 }
 
 export default function RootLayout() {

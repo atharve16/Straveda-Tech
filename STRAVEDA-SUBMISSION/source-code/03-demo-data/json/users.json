@@ -1,0 +1,181 @@
+{
+ "note": "Demo accounts (the users.php equivalent). pass_hash is the bcrypt hash of the demo password (see README).",
+ "users": {
+  "demo_super": {
+   "pass_hash": "$2y$10$Ax.FbnMcx7R2HW8RLGNtsuJsUC13LgebaKm.6vsAnp/D.RKkX9mpO",
+   "role": "superadmin",
+   "label": "Demo Super Admin (Rohan Energy)",
+   "filter": null,
+   "hidden_cols": [],
+   "org": null
+  },
+  "demo_hpcl_super": {
+   "pass_hash": "$2y$10$Ax.FbnMcx7R2HW8RLGNtsuJsUC13LgebaKm.6vsAnp/D.RKkX9mpO",
+   "role": "superadmin",
+   "label": "Demo HPCL Super Admin",
+   "filter": null,
+   "hidden_cols": [],
+   "org": "hpcl",
+   "created_by": "demo_super"
+  },
+  "demo_rohan_zo": {
+   "pass_hash": "$2y$10$Ax.FbnMcx7R2HW8RLGNtsuJsUC13LgebaKm.6vsAnp/D.RKkX9mpO",
+   "role": "zone",
+   "label": "Demo Rohan Zone Officer",
+   "filter": {
+    "zone": "Central Zone"
+   },
+   "hidden_cols": [],
+   "org": "rohan",
+   "level": "zone",
+   "ros": [
+    "INDORE RET RO",
+    "BHOPAL RET RO"
+   ],
+   "sheet_zone": "Bhopal Zone",
+   "created_by": "demo_super",
+   "mobile": "9000000101"
+  },
+  "demo_rohan_ro": {
+   "pass_hash": "$2y$10$Ax.FbnMcx7R2HW8RLGNtsuJsUC13LgebaKm.6vsAnp/D.RKkX9mpO",
+   "role": "zone",
+   "label": "Demo Rohan Regional Officer",
+   "filter": {
+    "zone": "Central Zone"
+   },
+   "hidden_cols": [],
+   "org": "rohan",
+   "level": "regional",
+   "ros": [
+    "INDORE RET RO"
+   ],
+   "sales_areas": [
+    "INDORE-1 RETAIL SA",
+    "INDORE-2 RETAIL SA",
+    "UJJAIN RETAIL SA",
+    "RATLAM RETAIL SA"
+   ],
+   "sheet_zone": "Bhopal Zone",
+   "created_by": "demo_rohan_zo",
+   "mobile": "9000000102"
+  },
+  "demo_rohan_ro2": {
+   "pass_hash": "$2y$10$Ax.FbnMcx7R2HW8RLGNtsuJsUC13LgebaKm.6vsAnp/D.RKkX9mpO",
+   "role": "zone",
+   "label": "Demo Rohan Regional Officer 2",
+   "filter": {
+    "zone": "Central Zone"
+   },
+   "hidden_cols": [],
+   "org": "rohan",
+   "level": "regional",
+   "ros": [
+    "BHOPAL RET RO"
+   ],
+   "sales_areas": [
+    "BHOPAL RETAIL SA",
+    "SEHORE RETAIL SA",
+    "VIDISHA RETAIL SA"
+   ],
+   "sheet_zone": "Bhopal Zone",
+   "created_by": "demo_rohan_zo",
+   "mobile": "9000000103"
+  },
+  "demo_rohan_zo_up": {
+   "pass_hash": "$2y$10$Ax.FbnMcx7R2HW8RLGNtsuJsUC13LgebaKm.6vsAnp/D.RKkX9mpO",
+   "role": "zone",
+   "label": "Demo Rohan Zone Officer (UP)",
+   "filter": {
+    "zone": "North Central Retail"
+   },
+   "hidden_cols": [],
+   "org": "rohan",
+   "level": "zone",
+   "ros": [
+    "KANPUR RET RO"
+   ],
+   "sheet_zone": "Noida (UP-West) Zone",
+   "created_by": "demo_super",
+   "mobile": "9000000104"
+  },
+  "demo_hpcl_zo": {
+   "pass_hash": "$2y$10$Ax.FbnMcx7R2HW8RLGNtsuJsUC13LgebaKm.6vsAnp/D.RKkX9mpO",
+   "role": "zone",
+   "label": "Demo HPCL Zonal Coordinator",
+   "filter": {
+    "zone": "Central Zone"
+   },
+   "hidden_cols": [],
+   "org": "hpcl",
+   "level": "zone",
+   "ros": [
+    "INDORE RET RO",
+    "BHOPAL RET RO"
+   ],
+   "sheet_zone": "Bhopal Zone",
+   "created_by": "demo_super",
+   "email": "demo.coord@example.com",
+   "mobile": "9000000201"
+  },
+  "demo_hpcl_rm": {
+   "pass_hash": "$2y$10$Ax.FbnMcx7R2HW8RLGNtsuJsUC13LgebaKm.6vsAnp/D.RKkX9mpO",
+   "role": "zone",
+   "label": "Demo HPCL Regional Manager",
+   "filter": {
+    "zone": "Central Zone"
+   },
+   "hidden_cols": [],
+   "org": "hpcl",
+   "level": "zone",
+   "ros": [
+    "INDORE RET RO"
+   ],
+   "sheet_zone": "Bhopal Zone",
+   "created_by": "demo_super",
+   "email": "demo.manager@example.com",
+   "mobile": "9000000202"
+  },
+  "demo_hpcl_so": {
+   "pass_hash": "$2y$10$Ax.FbnMcx7R2HW8RLGNtsuJsUC13LgebaKm.6vsAnp/D.RKkX9mpO",
+   "role": "zone",
+   "label": "Demo HPCL Sales Officer",
+   "filter": {
+    "zone": "Central Zone"
+   },
+   "hidden_cols": [],
+   "org": "hpcl",
+   "level": "regional",
+   "ros": [
+    "INDORE RET RO"
+   ],
+   "sales_areas": [
+    "INDORE-1 RETAIL SA",
+    "INDORE-2 RETAIL SA"
+   ],
+   "sheet_zone": "Bhopal Zone",
+   "created_by": "demo_hpcl_rm",
+   "email": "demo.so@example.com",
+   "mobile": "9000000203"
+  },
+  "demo_hpcl_l4": {
+   "pass_hash": "$2y$10$Ax.FbnMcx7R2HW8RLGNtsuJsUC13LgebaKm.6vsAnp/D.RKkX9mpO",
+   "role": "zone",
+   "label": "Demo HPCL Level 4 Officer",
+   "filter": {
+    "zone": "Central Zone"
+   },
+   "hidden_cols": [],
+   "org": "hpcl",
+   "level": "zone",
+   "ros": [
+    "INDORE RET RO",
+    "BHOPAL RET RO",
+    "KANPUR RET RO"
+   ],
+   "sheet_zone": "Bhopal Zone",
+   "created_by": "demo_super",
+   "email": "demo.level4@example.com",
+   "mobile": "9000000204"
+  }
+ }
+}

@@ -1,0 +1,5 @@
+# STRAVEDA submission package
+
+`source-code/client/` contains the Android client source, seed asset, scripts, tests and existing source audits. `source-code/02-web-portal-source/` and `source-code/03-demo-data/` preserve the supplied read-only reference code and demo inputs required by the inventory and seed scripts. `documentation/` contains the four requested submission documents. `android/` is empty because no signed APK build has completed; do not treat the Hermes bundle export as an APK.
+
+To complete the APK: from `source-code/client/`, run `npm ci --legacy-peer-deps`, `npx eas-cli login`, then `npx eas-cli build --platform android --profile production-apk`. Link or create the EAS project and generate Android signing credentials when prompted. Download the successful APK to `android/straveda.apk`, inspect its merged manifest for network permissions, install it on Android, then test fresh start, login, SQLite restart persistence and airplane-mode operation. Record actual device results in `documentation/TESTING_DOCUMENTATION.md`.

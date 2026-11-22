@@ -1,0 +1,30 @@
+{
+  "name": "rohan-energy-offline",
+  "version": "0.1.0",
+  "private": true,
+  "main": "expo-router/entry",
+  "scripts": {
+    "start": "expo start --dev-client",
+    "typecheck": "tsc --noEmit",
+    "test:domain": "node --experimental-strip-types tests/domain.test.mjs && node --experimental-strip-types tests/csv.test.mjs",
+    "test:seed": "python -m unittest discover -s tests/database -v",
+    "check:offline": "python scripts/check_offline.py"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "expo": "~58.0.0",
+    "expo-document-picker": "~58.0.5",
+    "expo-file-system": "~58.0.14",
+    "expo-linking": "^58.0.17",
+    "expo-router": "~58.0.32",
+    "expo-sharing": "~58.0.23",
+    "expo-sqlite": "~58.0.18",
+    "react": "19.3.0",
+    "react-native": "^0.88.1",
+    "react-native-safe-area-context": "^5.11.1"
+  },
+  "devDependencies": {
+    "@types/react": "~19.3.0",
+    "typescript": "~5.9.2"
+  }
+}
