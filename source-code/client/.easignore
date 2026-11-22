@@ -1,0 +1,49 @@
+# Git
+.git
+
+# Dependencies (installed during cloud build)
+node_modules
+
+# Expo cache
+.expo
+.expo-shared
+
+# Build outputs
+dist
+web-build
+coverage
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Operating system files
+.DS_Store
+Thumbs.db
+
+# Archives and previously generated APKs
+*.zip
+*.apk
+*.aab
+
+# Android build cache
+android/.gradle
+android/app/build
+android/build
+
+# iOS dependencies and builds
+ios/Pods
+ios/build
+
+.eas-inspect/
+.eas-inspect/**
+node_modules/
+.expo/
+.expo-shared/
+.git/
+coverage/
+dist/
+web-build/
+*.log
