@@ -1,5 +1,19 @@
 # Offline security design and limitations
 
+## MIS source security and concurrency audit (Task 05)
+
+The [MIS audit](MIS_AUDIT_REPORT.md) records source evidence and unresolved product choices. These are PHP behaviors, not Android controls already implemented.
+
+- **Session and CSRF:** `mis.php:16-47` calls `misUser`, opens the database and runs `misEnsureSchema` before dispatch. Only POST verifies a session CSRF token. No action-specific method allowlist exists, so a JSON-body GET may invoke a mutation without POST CSRF; ordinary GET `get/ver/download` also writes through schema ensure and `misSync`. An outlet session is not revalidated against its current profile by `misUser`.
+- **Scope:** `get`, `download` and bulk deletion use `misScopeSql`; save checks both current and proposed row with `misRowInScope`, and single delete checks the current row. Thus export is scoped. `outlet` reads exact SAP from `portal_outlets` without actor-scope filtering, exposing master outlet fields across zones to any session (`mis-core.php:580-590`).
+- **Inconsistent assignments:** `misScope` intersects assigned ROs with the officer's zone ROs only when the intersection is nonempty; when it is empty, it retains all zone ROs (`mis-core.php:93-95`). This is a confirmed widening relative to an invalid assigned RO list and requires a product/security decision.
+- **Write races:** `save_row` compares optional `ver` in an earlier SELECT but UPDATE has no version predicate/row lock; delete functions have no stale check. `misSync` has no encompassing transaction or lock. Bulk deletion and import transact row changes, but there is no cross-operation revision lock. Concurrent saves, sync and deletion can leave last-writer or stale projections (`mis-core.php:244-268,421-577`).
+- **Audit integrity:** `chgAdd` catches failures. Save/single delete write log before revision bump without an encompassing transaction; bulk delete/import log after commit. A successful data mutation can lack a change-log entry. This shared log differs from `api.php` audit rows and order event history (`change-log.php:40-54`).
+- **MIS history disclosure:** `orders.php change_log area=mis` calls `chgFetch` without MIS geography filtering, even though the MIS row reader and export are scoped (`orders.php:2009-2012`). History text may expose rows outside an actor's usual MIS scope.
+- **Workbook and SQL:** `download` requires the missing original template, so package validity and layout cannot be verified. `misDistinct` interpolates a column identifier but all supplied callers pass fixed literals; `misWhere` parameterizes request values and escapes LIKE patterns. The original template trust boundary and full runtime behavior need validation once supplied.
+
+Decisions required before Android migration: whether to scope outlet lookup, how to handle read-time projection, whether to require atomic stale-write detection, whether change history must be guaranteed, and what workbook format to preserve. The offline app should use local SQLite transactions and app-private export files; none is implemented by this audit.
+
 ## API source security audit (Task 04)
 
 All 19 API branches are in [API_AUDIT_REPORT.md](API_AUDIT_REPORT.md). These are PHP observations, not Android controls already implemented.

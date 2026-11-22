@@ -1,6 +1,6 @@
 # PHP to TypeScript mapping — working inventory
 
-Each row is a distinct endpoint/action pair to evaluate for a local Android service. There are 87 rows, including `orders.public_invoice`; repeated action words at different endpoints are separate contracts. The 23 `auth.php` source contracts are `AUDITED` in [AUTHENTICATION_AUDIT_REPORT.md](AUTHENTICATION_AUDIT_REPORT.md), the 37 `orders.php` contracts are `AUDITED` in [ORDERS_AUDIT_REPORT.md](ORDERS_AUDIT_REPORT.md), and the 19 `api.php` contracts are `AUDITED` in [API_AUDIT_REPORT.md](API_AUDIT_REPORT.md). The remaining eight MIS actions need audit. TypeScript service names and test paths are proposed migration targets, not existing code. No action has a working Android business implementation or a `client/src/` service. The 305 helper statuses are tracked in `SOURCE_CODE_AUDIT.md`.
+Each row is a distinct endpoint/action pair to evaluate for a local Android service. There are 87 rows, including `orders.public_invoice`; repeated action words at different endpoints are separate contracts. The 23 `auth.php` source contracts are `AUDITED` in [AUTHENTICATION_AUDIT_REPORT.md](AUTHENTICATION_AUDIT_REPORT.md), 37 `orders.php` in [ORDERS_AUDIT_REPORT.md](ORDERS_AUDIT_REPORT.md), 19 `api.php` in [API_AUDIT_REPORT.md](API_AUDIT_REPORT.md), and eight `mis.php` in [MIS_AUDIT_REPORT.md](MIS_AUDIT_REPORT.md). TypeScript service names and test paths are proposed migration targets, not existing code. No action has a working Android business implementation or a `client/src/` service. The 305 helper statuses are tracked in `SOURCE_CODE_AUDIT.md`.
 
 | PHP location | Action | PHP helper | Planned TypeScript service | Automated test | Status |
 |---|---|---|---|---|---|
@@ -83,16 +83,32 @@ Each row is a distinct endpoint/action pair to evaluate for a local Android serv
 | `api.php:76` | `save_note` | `saveNote` | `api.save_note` | `tests/regression/api/save_note.test.ts` | AUDITED |
 | `api.php:77` | `get_targets` | `getTargets` | `api.get_targets` | `tests/regression/api/get_targets.test.ts` | AUDITED |
 | `api.php:78` | `save_target` | `saveTarget` | `api.save_target` | `tests/regression/api/save_target.test.ts` | AUDITED |
-| `mis.php:32` | `get` | `see dispatch body` | `mis.get` | `tests/regression/mis/get.test.ts` | NEEDS_CLARIFICATION |
-| `mis.php:34` | `ver` | `misOut` | `mis.ver` | `tests/regression/mis/ver.test.ts` | NEEDS_CLARIFICATION |
-| `mis.php:35` | `download` | `misDownload` | `mis.download` | `tests/regression/mis/download.test.ts` | NEEDS_CLARIFICATION |
-| `mis.php:36` | `outlet` | `misOutlet` | `mis.outlet` | `tests/regression/mis/outlet.test.ts` | NEEDS_CLARIFICATION |
-| `mis.php:37` | `save_row` | `misSaveRow` | `mis.save_row` | `tests/regression/mis/save_row.test.ts` | NEEDS_CLARIFICATION |
-| `mis.php:38` | `delete_row` | `misDeleteRow` | `mis.delete_row` | `tests/regression/mis/delete_row.test.ts` | NEEDS_CLARIFICATION |
-| `mis.php:39` | `delete_rows` | `misDeleteRows` | `mis.delete_rows` | `tests/regression/mis/delete_rows.test.ts` | NEEDS_CLARIFICATION |
-| `mis.php:40` | `import` | `misImport` | `mis.import` | `tests/regression/mis/import.test.ts` | NEEDS_CLARIFICATION |
+| `mis.php:32` | `get` | `misGet` | `mis.get` | `tests/regression/mis/get.test.ts` | AUDITED |
+| `mis.php:34` | `ver` | `misMeta/misOut` | `mis.ver` | `tests/regression/mis/ver.test.ts` | AUDITED |
+| `mis.php:35` | `download` | `misDownload` | `mis.download` | `tests/regression/mis/download.test.ts` | AUDITED |
+| `mis.php:36` | `outlet` | `misOutlet` | `mis.outlet` | `tests/regression/mis/outlet.test.ts` | AUDITED |
+| `mis.php:37` | `save_row` | `misSaveRow` | `mis.save_row` | `tests/regression/mis/save_row.test.ts` | AUDITED |
+| `mis.php:38` | `delete_row` | `misDeleteRow` | `mis.delete_row` | `tests/regression/mis/delete_row.test.ts` | AUDITED |
+| `mis.php:39` | `delete_rows` | `misDeleteRows` | `mis.delete_rows` | `tests/regression/mis/delete_rows.test.ts` | AUDITED |
+| `mis.php:40` | `import` | `misImport` | `mis.import` | `tests/regression/mis/import.test.ts` | AUDITED |
 
 ## Reviewed contract fragments
+
+### MIS action migration contracts
+
+The destination `mis.*` labels and `tests/regression/mis/*.test.ts` paths in the inventory table are **proposals**. Each row below maps to the numbered action contract in [MIS_AUDIT_REPORT.md](MIS_AUDIT_REPORT.md#eight-action-contracts). All eight have source audit status `AUDITED`; none is implemented.
+
+| Action | Input and response | Authorization and data effects | Planned parity test |
+|---|---|---|---|
+| `get` | Query month/zone/state/q/sort/page/per/lists/pivots → rev, scoped rows, totals, filters, optional pivots | Signed-in; `misScopeSql`; pre-read order sync may write; template required only for pivots | Scope, page 10–200, filters, report totals, sync |
+| `ver` | Selector → integer rev | Signed-in; pre-read sync may write and bump | No-op and changed-order revision |
+| `download` | Selector → scoped XLSX bytes | Signed-in; `misAllRows` applies actor scope; template absent | Scope and workbook validity when supplied |
+| `outlet` | Trimmed query SAP → found and outlet fields | Signed-in; exact master lookup has no geographic/SAP guard | Cross-scope lookup policy, missing SAP |
+| `save_row` | POST id?/f/ver? → row and rev | Rohan editor; old/new row scope, optional stale check; insert/update, log, revision | Create/update, field validation, scope, lost update |
+| `delete_row` | POST id → rev | Rohan editor; scoped order row hidden or sheet row deleted; log/revision | Origin, scope, replay |
+| `delete_rows` | POST ids[] or all/filter → deleted and rev | Rohan editor; scoped transactional chunk/delete; postcommit best-effort log | All/IDs, large batch, rollback, log gap |
+| `import` | POST rows/mode/name → counts, effective mode, rev | Rohan editor; scope forces append; global replace hides order rows and removes sheet rows | Invalid/duplicate/out-of-scope rows, 30k cap, replace |
+
 
 | Actions | Input and validation | Authorization and scope | Reads and writes | Return and errors | Required tests |
 |---|---|---|---|---|---|
@@ -102,9 +118,9 @@ Each row is a distinct endpoint/action pair to evaluate for a local Android serv
 | `orders.save`, `orders.submit` | ID, date, SAP, remarks, items, submit flag; `ordCheck` validates SAP, lines, FOC, stock, minimum and prices | Role, creator, status and geographic scope; submit needs mapped approver | Read order/items/outlet/products/settings/users; create/update order, replace lines, log event, move to pending | Updated order; 403/404/409/422 | Role/status matrix, SAP spoofing, FOC, stock, prices, transaction rollback |
 | `orders.approve`, `orders.reject` | ID, optional `seen_updated_at`, comment; reject needs comment | Pending under `ordScope` AND `ordAwaitCond` | Lock/read order and stock; update decision, event, invoice mode/numbering | Updated order; 403/404/409/422 | Every actor/placed role, scope, stale edit, stock race, invoice mode |
 | `orders.return_request`, `orders.return_decide` | Order/return ID, reason, credit note, decision/comment | Visible approved delivered order; decision permission and scope; no nonadmin self-decision | Read order/returns/permissions; insert/update return and event | Order/return; 403/404/409/422 | Delivery, duplicate requests, self-decision, state scope, permission |
-| `mis.get`, `mis.ver` | Full action inputs still pending | `misScopeSql`; full action guard pending | `misSync` reads orders/items/MIS and conditionally updates MIS and revision | Full action return/error contract pending | Stale deletion, duplicate prevention, no-op revision, scope |
+| `mis.get`, `mis.ver` | GET query filters/page/per/sort/lists/pivots or revision selector | Signed-in current MIS scope; outlet session not revalidated by `misUser` | `misSync` reads orders/items/MIS and conditionally updates MIS and revision | `get` returns paged rows, totals, months/lists/pivots and rev; `ver` returns rev; 500 on sync/template failure | Stale deletion, duplicate prevention, no-op revision, scope |
 
-The 23 authentication contracts are documented in [AUTHENTICATION_AUDIT_REPORT.md](AUTHENTICATION_AUDIT_REPORT.md). Each of the 37 order rows above maps to the individually numbered request/response, authorization, data-effect and Android/test contract in [ORDERS_AUDIT_REPORT.md](ORDERS_AUDIT_REPORT.md); the 19 API rows map to [API_AUDIT_REPORT.md](API_AUDIT_REPORT.md). The short fragments above are supplementary. The eight MIS action rows still require complete source review. Listed TypeScript names and test paths are planned, not implemented.
+The 23 authentication contracts are documented in [AUTHENTICATION_AUDIT_REPORT.md](AUTHENTICATION_AUDIT_REPORT.md). Each of the 37 order rows above maps to the individually numbered contract in [ORDERS_AUDIT_REPORT.md](ORDERS_AUDIT_REPORT.md); 19 API rows map to [API_AUDIT_REPORT.md](API_AUDIT_REPORT.md) and eight MIS rows to [MIS_AUDIT_REPORT.md](MIS_AUDIT_REPORT.md). The short fragments above are supplementary. Listed TypeScript names and test paths are planned, not implemented.
 
 ## Orders request/response and data-effect mapping
 

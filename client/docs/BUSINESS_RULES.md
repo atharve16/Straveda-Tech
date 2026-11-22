@@ -1,6 +1,16 @@
 ﻿# Verified business rules (source review in progress)
 
-The rules below are source-derived fragments, not a complete contract for the 87 dispatchable actions. Runtime parity is unverified. `config.php`, live `users.php`, and the `mis-data` directory are absent; `config.example.php` and `03-demo-data/users.demo.php` describe a demo setup, not the live portal. No rule inferred from those missing files is treated as verified.
+The rules below are source-derived summaries of the 87 audited dispatchable actions, not runtime parity. `config.php`, live `users.php`, and the `mis-data` directory are absent; `config.example.php` and `03-demo-data/users.demo.php` describe a demo setup, not the live portal. No rule inferred from those missing files is treated as verified.
+
+## MIS module audited in Task 05
+
+The [MIS source audit](MIS_AUDIT_REPORT.md) contains eight individual action contracts, all 45 `mis-core.php` helpers, 25 XLSX helpers and four shared change-log helpers. This is the direct MIS editor/import workflow; `api.php` pending entries remain separate.
+
+- **Reads and reports.** `get` filters visible `gone=0` rows by optional month, zone, state and search, applies actor scope, clamps page size to 10–200 and returns totals, revision, months and optional lists/pivots. `ver` returns revision after order projection synchronization. `download` selects all visible rows **within the same actor scope**. Both pivot results and Excel export require the missing original workbook template (`mis-core.php:277-350,592-600`).
+- **Direct writes.** Only a non-HPCL Super Admin or Rohan `role=zone` officer can create, edit, delete or import. Save checks old and proposed row scope, validates date/text/quantity, and optionally compares row version; the final UPDATE has no version predicate. Single delete hides an order-derived row with `gone=1`, but physically removes a sheet row. Bulk delete applies actor scope and transacts row changes/revision; its change-log write happens after commit (`mis-core.php:421-509`).
+- **Import.** The browser parses .xlsx/.xls/.csv and sends normalized JSON; the PHP endpoint accepts up to 30,000 rows. Bad dates are skipped, duplicate sheet rows are accepted, and non-date invalid values may become null. Any editor with a nonnull scope is forced to append; only an unrestricted editor can replace the whole sheet. Replace hides visible order-derived rows and deletes sheet rows, then inserts accepted rows in one transaction (`mis.js:445-557`; `mis-core.php:512-577`).
+- **Order projection.** `misSync` removes now-ineligible order-item projections and inserts missing approved, nonhistorical order items, including FOC in total EA. It does not update an existing projected row when the source order changes; a `gone=1` marker prevents reinsertion while the item remains eligible. Revision changes only for inserted/deleted projection rows. A GET can trigger this local-table write in PHP (`mis-core.php:244-268`).
+- **Unresolved decisions.** The template's exact layout is unavailable; `outlet` exposes master SAP details across normal MIS geography; GET may mutate by dispatching JSON and bypass POST CSRF; row-version checks are optional and not atomic. Decide offline semantics before implementation, without assuming the existing behavior is safe to copy unchanged.
 
 ## API data entry and pending workflow audited in Task 04
 

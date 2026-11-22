@@ -1,6 +1,6 @@
 # Source code audit — working inventory
 
-This inventory was checked against the supplied PHP dispatch switches and the early `public_invoice` branch at `orders.php:1062`. The original script missed that branch. `python scripts/source_inventory.py` reports **87 actions and 305 declared PHP functions** without overwriting these notes. The 23 `auth.php` actions and 63 reachable authentication helpers have source contracts in [AUTHENTICATION_AUDIT_REPORT.md](AUTHENTICATION_AUDIT_REPORT.md); three authentication helper call sites remain unknown. All 37 `orders.php` actions and 129 order helpers have source contracts in [ORDERS_AUDIT_REPORT.md](ORDERS_AUDIT_REPORT.md). All 19 `api.php` actions and 36 API helpers were examined in [API_AUDIT_REPORT.md](API_AUDIT_REPORT.md); 32 helpers are route-reachable and four are not route-reachable in the supplied router. The eight `mis.php` actions remain pending. The PHP source remains authoritative.
+This inventory was checked against the supplied PHP dispatch switches and the early `public_invoice` branch at `orders.php:1062`. The original script missed that branch. `python scripts/source_inventory.py` reports **87 actions and 305 declared PHP functions** without overwriting these notes. The 23 `auth.php` actions and 63 reachable authentication helpers have source contracts in [AUTHENTICATION_AUDIT_REPORT.md](AUTHENTICATION_AUDIT_REPORT.md); three authentication helper call sites remain unknown. All 37 `orders.php` actions and 129 order helpers have source contracts in [ORDERS_AUDIT_REPORT.md](ORDERS_AUDIT_REPORT.md). All 19 `api.php` actions and 36 API helpers were examined in [API_AUDIT_REPORT.md](API_AUDIT_REPORT.md); 32 helpers are route-reachable and four are not route-reachable in the supplied router. All eight `mis.php` actions, 45 MIS core helpers, 25 XLSX helpers and four shared change-log helpers have source contracts in [MIS_AUDIT_REPORT.md](MIS_AUDIT_REPORT.md). The PHP source remains authoritative.
 
 ## Completeness gate (2026-11-22)
 
@@ -10,13 +10,14 @@ This inventory was checked against the supplied PHP dispatch switches and the ea
 | Syntactically routable by PHP dispatch URL/body | 87; runtime execution needs the absent `config.php` and a populated local database |
 | Confirmed dead actions | 0; frontend usage is not a reachability requirement for a public route |
 | Declared PHP helper functions | 305 |
-| Confirmed reachable helper functions | 224: 63 authentication, 129 orders and 32 API helpers traced to supplied route call chains; MIS pending |
-| Helpers requiring TypeScript migration | 50 reachable authentication rule/security helpers and the order/API rule/security helpers need local equivalents; server/database/file adapters need local replacements; 3 auth helper reachability unknown; MIS pending |
-| Fully audited actions | 79 (23 `auth.php`, 37 `orders.php`, 19 `api.php`); no Android implementation |
-| Pending actions | 8 (`mis.php`) |
+| Confirmed reachable helper functions | 298: 63 authentication, 129 orders, 32 API, 45 MIS core, 25 XLSX and 4 shared change-log helpers traced to supplied route call chains |
+| Helpers requiring TypeScript migration | Rule/security/calculation helpers need local equivalents; server/database/file adapters need local replacements; 3 auth helper reachability questions remain unknown |
+| Fully audited actions | 87 (23 `auth.php`, 37 `orders.php`, 19 `api.php`, 8 `mis.php`); no Android implementation |
+| Pending actions | 0 in the supplied dispatch inventory; runtime parity remains unverified |
 | Fully audited authentication helpers | 63 of 66 declared in focus files; 3 have unknown reachability |
 | Fully audited orders helpers | 129 of 129 declared in `orders.php`; all traced to a route in supplied PHP |
 | API helpers examined | 36: 32 route-reachable AUDITED, 4 NOT_REQUIRED for current API routes |
+| MIS and shared helpers audited | 74: 45 `mis-core.php`, 25 `mis-xlsx.php`, 4 `change-log.php`; all route-reachable directly or indirectly |
 
 The 305 functions include 25 in `mis-xlsx.php`; this file contains a NUL byte, so ordinary `rg` treats it as binary and undercounts functions. The inventory script reads it as text. The frontend files `index.html`, `orders.js`, `mis.js`, `dash-reports.js`, `salesorder.js`, and `invoice.html` call the PHP endpoints; `invoice.html:32` calls `public_invoice`. API action names repeat across separate endpoints (`approve`, `delete`, `get`, `import`); these are distinct routes, not duplicate implementations. No action is proven dead merely because a static search missed a browser caller.
 
@@ -26,7 +27,7 @@ The 305 functions include 25 in `mis-xlsx.php`; this file contains a NUL byte, s
 
 The API audit also found no supplied DDL or data for `PENDING_TABLE` (demo config calls it `pending_entries`) or the configured `RO_REF_DB.RO_REF_TABLE` fallback reference sheet. The API's pending workflow and reference lookup are source-audited, but their live table constraints and production contents cannot be verified from this kit; see [API_AUDIT_REPORT.md](API_AUDIT_REPORT.md).
 
-For **each of the remaining eight MIS action rows below**, review its dispatch branch and helper bodies, then record request/response, validation, authorization, data/transaction effects and Android migration tests. The 74 MIS/other helper rows and three unknown-reachability authentication helpers still need disposition. Order and API contracts are in [ORDERS_AUDIT_REPORT.md](ORDERS_AUDIT_REPORT.md) and [API_AUDIT_REPORT.md](API_AUDIT_REPORT.md). The earlier selected fragments at the end of this file are superseded by those reports. No Phase 2 implementation is authorized by this source audit.
+The eight MIS action contracts and 74 MIS/shared helper contracts are in [MIS_AUDIT_REPORT.md](MIS_AUDIT_REPORT.md). The three unknown-reachability authentication helpers remain unresolved. The earlier selected fragments at the end of this file are superseded by the module reports. No Phase 2 implementation is authorized by this source audit.
 
 ### Fully audited action contract
 
@@ -147,14 +148,14 @@ The 37 `orders.php` rows below are index entries. Their complete source ranges, 
 | `api.php:76` | `save_note` | `saveNote` | AUDITED |
 | `api.php:77` | `get_targets` | `getTargets` | AUDITED |
 | `api.php:78` | `save_target` | `saveTarget` | AUDITED |
-| `mis.php:32` | `get` | `see dispatch body` | NEEDS_CLARIFICATION |
-| `mis.php:34` | `ver` | `misOut` | NEEDS_CLARIFICATION |
-| `mis.php:35` | `download` | `misDownload` | NEEDS_CLARIFICATION |
-| `mis.php:36` | `outlet` | `misOutlet` | NEEDS_CLARIFICATION |
-| `mis.php:37` | `save_row` | `misSaveRow` | NEEDS_CLARIFICATION |
-| `mis.php:38` | `delete_row` | `misDeleteRow` | NEEDS_CLARIFICATION |
-| `mis.php:39` | `delete_rows` | `misDeleteRows` | NEEDS_CLARIFICATION |
-| `mis.php:40` | `import` | `misImport` | NEEDS_CLARIFICATION |
+| `mis.php:32` | `get` | `misGet` | AUDITED |
+| `mis.php:34` | `ver` | `misMeta/misOut` | AUDITED |
+| `mis.php:35` | `download` | `misDownload` | AUDITED |
+| `mis.php:36` | `outlet` | `misOutlet` | AUDITED |
+| `mis.php:37` | `save_row` | `misSaveRow` | AUDITED |
+| `mis.php:38` | `delete_row` | `misDeleteRow` | AUDITED |
+| `mis.php:39` | `delete_rows` | `misDeleteRows` | AUDITED |
+| `mis.php:40` | `import` | `misImport` | AUDITED |
 
 ## PHP helper functions
 
@@ -389,82 +390,82 @@ The 37 `orders.php` rows below are index entries. Their complete source ranges, 
 | `api.php:794` | `rejectPending` | AUDITED |
 | `api.php:814` | `editPending` | AUDITED |
 | `api.php:845` | `deletePending` | AUDITED |
-| `mis-core.php:28` | `misFail` | NEEDS_CLARIFICATION |
-| `mis-core.php:32` | `misOut` | NEEDS_CLARIFICATION |
-| `mis-core.php:36` | `misDB` | NEEDS_CLARIFICATION |
-| `mis-core.php:46` | `misUser` | NEEDS_CLARIFICATION |
-| `mis-core.php:59` | `misKey` | NEEDS_CLARIFICATION |
-| `mis-core.php:61` | `misKeySql` | NEEDS_CLARIFICATION |
-| `mis-core.php:68` | `misScope` | NEEDS_CLARIFICATION |
-| `mis-core.php:103` | `misScopeSaps` | NEEDS_CLARIFICATION |
-| `mis-core.php:116` | `misScopeSql` | NEEDS_CLARIFICATION |
-| `mis-core.php:132` | `misRowInScope` | NEEDS_CLARIFICATION |
-| `mis-core.php:144` | `misRequireCsrf` | NEEDS_CLARIFICATION |
-| `mis-core.php:150` | `misEnsureSchema` | NEEDS_CLARIFICATION |
-| `mis-core.php:194` | `misMeta` | NEEDS_CLARIFICATION |
-| `mis-core.php:198` | `misMetaSet` | NEEDS_CLARIFICATION |
-| `mis-core.php:202` | `misBump` | NEEDS_CLARIFICATION |
-| `mis-core.php:207` | `misHasOrders` | NEEDS_CLARIFICATION |
-| `mis-core.php:212` | `misNormKey` | NEEDS_CLARIFICATION |
-| `mis-core.php:214` | `misCanonMaps` | NEEDS_CLARIFICATION |
-| `mis-core.php:225` | `misCanon` | NEEDS_CLARIFICATION |
-| `mis-core.php:237` | `misItemName` | NEEDS_CLARIFICATION |
-| `mis-core.php:244` | `misSync` | NEEDS_CLARIFICATION |
-| `mis-core.php:271` | `misN` | NEEDS_CLARIFICATION |
-| `mis-core.php:272` | `misRowOut` | NEEDS_CLARIFICATION |
-| `mis-core.php:277` | `misAllRows` | NEEDS_CLARIFICATION |
-| `mis-core.php:288` | `misPivots` | NEEDS_CLARIFICATION |
-| `mis-core.php:304` | `misWhere` | NEEDS_CLARIFICATION |
-| `mis-core.php:316` | `misDistinct` | NEEDS_CLARIFICATION |
-| `mis-core.php:323` | `misMonths` | NEEDS_CLARIFICATION |
-| `mis-core.php:329` | `misMonthTitle` | NEEDS_CLARIFICATION |
-| `mis-core.php:331` | `misGet` | NEEDS_CLARIFICATION |
-| `mis-core.php:353` | `misClean` | NEEDS_CLARIFICATION |
-| `mis-core.php:359` | `misCanonItem` | NEEDS_CLARIFICATION |
-| `mis-core.php:364` | `misCheckFields` | NEEDS_CLARIFICATION |
-| `mis-core.php:389` | `misLogVal` | NEEDS_CLARIFICATION |
-| `mis-core.php:394` | `misLogRow` | NEEDS_CLARIFICATION |
-| `mis-core.php:400` | `misLogTitle` | NEEDS_CLARIFICATION |
-| `mis-core.php:404` | `misLogDiff` | NEEDS_CLARIFICATION |
-| `mis-core.php:413` | `misLogFilter` | NEEDS_CLARIFICATION |
-| `mis-core.php:421` | `misSaveRow` | NEEDS_CLARIFICATION |
-| `mis-core.php:457` | `misDeleteRow` | NEEDS_CLARIFICATION |
-| `mis-core.php:474` | `misDeleteRows` | NEEDS_CLARIFICATION |
-| `mis-core.php:512` | `misImportRow` | NEEDS_CLARIFICATION |
-| `mis-core.php:541` | `misImport` | NEEDS_CLARIFICATION |
-| `mis-core.php:580` | `misOutlet` | NEEDS_CLARIFICATION |
-| `mis-core.php:592` | `misDownload` | NEEDS_CLARIFICATION |
-| `mis-xlsx.php:23` | `misZipRead` | NEEDS_CLARIFICATION |
-| `mis-xlsx.php:45` | `misZipWrite` | NEEDS_CLARIFICATION |
-| `mis-xlsx.php:61` | `misColName` | NEEDS_CLARIFICATION |
-| `mis-xlsx.php:62` | `misX` | NEEDS_CLARIFICATION |
-| `mis-xlsx.php:66` | `misNum` | NEEDS_CLARIFICATION |
-| `mis-xlsx.php:72` | `misSerial` | NEEDS_CLARIFICATION |
-| `mis-xlsx.php:74` | `misCell` | NEEDS_CLARIFICATION |
-| `mis-xlsx.php:83` | `misRow` | NEEDS_CLARIFICATION |
-| `mis-xlsx.php:85` | `misDom` | NEEDS_CLARIFICATION |
-| `mis-xlsx.php:90` | `misDomOut` | NEEDS_CLARIFICATION |
-| `mis-xlsx.php:94` | `misXp` | NEEDS_CLARIFICATION |
-| `mis-xlsx.php:196` | `misRowVal` | NEEDS_CLARIFICATION |
-| `mis-xlsx.php:204` | `misPivotModel` | NEEDS_CLARIFICATION |
-| `mis-xlsx.php:272` | `misMonthHead` | NEEDS_CLARIFICATION |
-| `mis-xlsx.php:276` | `misMS` | NEEDS_CLARIFICATION |
-| `mis-xlsx.php:279` | `misCols` | NEEDS_CLARIFICATION |
-| `mis-xlsx.php:299` | `misBuildXlsx` | NEEDS_CLARIFICATION |
-| `mis-xlsx.php:372` | `misSortCells` | NEEDS_CLARIFICATION |
-| `mis-xlsx.php:379` | `misBlanks` | NEEDS_CLARIFICATION |
-| `mis-xlsx.php:381` | `misBuildReports` | NEEDS_CLARIFICATION |
-| `mis-xlsx.php:491` | `misColsOf` | NEEDS_CLARIFICATION |
-| `mis-xlsx.php:493` | `misColItems` | NEEDS_CLARIFICATION |
-| `mis-xlsx.php:500` | `misSheet` | NEEDS_CLARIFICATION |
-| `mis-xlsx.php:510` | `misBuildCache` | NEEDS_CLARIFICATION |
-| `mis-xlsx.php:592` | `misRecText` | NEEDS_CLARIFICATION |
+| `mis-core.php:28` | `misFail` | AUDITED |
+| `mis-core.php:32` | `misOut` | AUDITED |
+| `mis-core.php:36` | `misDB` | AUDITED |
+| `mis-core.php:46` | `misUser` | AUDITED |
+| `mis-core.php:59` | `misKey` | AUDITED |
+| `mis-core.php:61` | `misKeySql` | AUDITED |
+| `mis-core.php:68` | `misScope` | AUDITED |
+| `mis-core.php:103` | `misScopeSaps` | AUDITED |
+| `mis-core.php:116` | `misScopeSql` | AUDITED |
+| `mis-core.php:132` | `misRowInScope` | AUDITED |
+| `mis-core.php:144` | `misRequireCsrf` | AUDITED |
+| `mis-core.php:150` | `misEnsureSchema` | AUDITED |
+| `mis-core.php:194` | `misMeta` | AUDITED |
+| `mis-core.php:198` | `misMetaSet` | AUDITED |
+| `mis-core.php:202` | `misBump` | AUDITED |
+| `mis-core.php:207` | `misHasOrders` | AUDITED |
+| `mis-core.php:212` | `misNormKey` | AUDITED |
+| `mis-core.php:214` | `misCanonMaps` | AUDITED |
+| `mis-core.php:225` | `misCanon` | AUDITED |
+| `mis-core.php:237` | `misItemName` | AUDITED |
+| `mis-core.php:244` | `misSync` | AUDITED |
+| `mis-core.php:271` | `misN` | AUDITED |
+| `mis-core.php:272` | `misRowOut` | AUDITED |
+| `mis-core.php:277` | `misAllRows` | AUDITED |
+| `mis-core.php:288` | `misPivots` | AUDITED |
+| `mis-core.php:304` | `misWhere` | AUDITED |
+| `mis-core.php:316` | `misDistinct` | AUDITED |
+| `mis-core.php:323` | `misMonths` | AUDITED |
+| `mis-core.php:329` | `misMonthTitle` | AUDITED |
+| `mis-core.php:331` | `misGet` | AUDITED |
+| `mis-core.php:353` | `misClean` | AUDITED |
+| `mis-core.php:359` | `misCanonItem` | AUDITED |
+| `mis-core.php:364` | `misCheckFields` | AUDITED |
+| `mis-core.php:389` | `misLogVal` | AUDITED |
+| `mis-core.php:394` | `misLogRow` | AUDITED |
+| `mis-core.php:400` | `misLogTitle` | AUDITED |
+| `mis-core.php:404` | `misLogDiff` | AUDITED |
+| `mis-core.php:413` | `misLogFilter` | AUDITED |
+| `mis-core.php:421` | `misSaveRow` | AUDITED |
+| `mis-core.php:457` | `misDeleteRow` | AUDITED |
+| `mis-core.php:474` | `misDeleteRows` | AUDITED |
+| `mis-core.php:512` | `misImportRow` | AUDITED |
+| `mis-core.php:541` | `misImport` | AUDITED |
+| `mis-core.php:580` | `misOutlet` | AUDITED |
+| `mis-core.php:592` | `misDownload` | AUDITED |
+| `mis-xlsx.php:23` | `misZipRead` | AUDITED |
+| `mis-xlsx.php:45` | `misZipWrite` | AUDITED |
+| `mis-xlsx.php:61` | `misColName` | AUDITED |
+| `mis-xlsx.php:62` | `misX` | AUDITED |
+| `mis-xlsx.php:66` | `misNum` | AUDITED |
+| `mis-xlsx.php:72` | `misSerial` | AUDITED |
+| `mis-xlsx.php:74` | `misCell` | AUDITED |
+| `mis-xlsx.php:83` | `misRow` | AUDITED |
+| `mis-xlsx.php:85` | `misDom` | AUDITED |
+| `mis-xlsx.php:90` | `misDomOut` | AUDITED |
+| `mis-xlsx.php:94` | `misXp` | AUDITED |
+| `mis-xlsx.php:196` | `misRowVal` | AUDITED |
+| `mis-xlsx.php:204` | `misPivotModel` | AUDITED |
+| `mis-xlsx.php:272` | `misMonthHead` | AUDITED |
+| `mis-xlsx.php:276` | `misMS` | AUDITED |
+| `mis-xlsx.php:279` | `misCols` | AUDITED |
+| `mis-xlsx.php:299` | `misBuildXlsx` | AUDITED |
+| `mis-xlsx.php:372` | `misSortCells` | AUDITED |
+| `mis-xlsx.php:379` | `misBlanks` | AUDITED |
+| `mis-xlsx.php:381` | `misBuildReports` | AUDITED |
+| `mis-xlsx.php:491` | `misColsOf` | AUDITED |
+| `mis-xlsx.php:493` | `misColItems` | AUDITED |
+| `mis-xlsx.php:500` | `misSheet` | AUDITED |
+| `mis-xlsx.php:510` | `misBuildCache` | AUDITED |
+| `mis-xlsx.php:592` | `misRecText` | AUDITED |
 | `regions.php:175` | `approvalStateList` | AUDITED |
 | `regions.php:183` | `approvalStates` | AUDITED |
-| `change-log.php:11` | `chgEnsure` | NEEDS_CLARIFICATION |
-| `change-log.php:31` | `chgRole` | NEEDS_CLARIFICATION |
-| `change-log.php:40` | `chgAdd` | NEEDS_CLARIFICATION |
-| `change-log.php:57` | `chgFetch` | NEEDS_CLARIFICATION |
+| `change-log.php:11` | `chgEnsure` | AUDITED |
+| `change-log.php:31` | `chgRole` | AUDITED |
+| `change-log.php:40` | `chgAdd` | AUDITED |
+| `change-log.php:57` | `chgFetch` | AUDITED |
 
 ## Frontend files
 

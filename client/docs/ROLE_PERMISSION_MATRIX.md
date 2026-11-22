@@ -11,10 +11,25 @@
 | HPCL Level 4 officer | HPCL hierarchy designation in `ORD_HPCL_DESIG` | Exact effective account scope and privileges require full source review. |
 | Outlet | `portal_outlet_users`, `outlet=true`, one SAP number | Derived zone/region/sales area from outlet record on login/check; `ordScope` limits to its own SAP. `ordAwaitCond` explicitly returns false for an outlet account. |
 
-This is not a complete portal-wide permission matrix. The 18 page IDs in `auth.php` are visibility settings, not a substitute for server-side authorization. Authentication/account, `orders.php` and `api.php` actions are audited below; eight `mis.php` actions remain pending. The absent live `users.php` prevents verifying live per-user page and approval-state grants. Every unlisted permission remains `NEEDS_CLARIFICATION`.
+This matrix summarizes source-audited action guards; it does not establish runtime parity. The 18 page IDs in `auth.php` are visibility settings, not a substitute for server-side authorization. Authentication/account, `orders.php`, `api.php` and `mis.php` actions are audited below. The absent live `users.php` prevents verifying live per-user page and approval-state grants.
 
 The 37 `orders.php` action guards have now been reviewed in [ORDERS_AUDIT_REPORT.md](ORDERS_AUDIT_REPORT.md). The matrix below records the executable source gates; the absent live roster prevents confirming production grants.
-The API action matrix below supplements the order matrix; the MIS routes remain pending.
+The API and MIS action matrices below supplement the order matrix.
+
+## Direct MIS action eligibility (source audited)
+
+Source: `mis.php:16-47`, `mis-core.php:46-142,331-350,421-600`. `get`, `ver`, `download` and `outlet` require `misUser()` to accept a signed-in session. `save_row`, `delete_row`, `delete_rows` and `import` additionally require `me.edit`. `hidden_pages` is not consulted. A PHP method is not constrained per action; POST alone invokes CSRF.
+
+| Actor | Read/get/ver/download scope | Direct save/delete/bulk/import | Outlet lookup |
+|---|---|---|---|
+| Rohan Super Admin | All unless `approvalStates` limits states | Yes; state-restricted account may edit only its scope and import is forced append | Any exact master SAP; no scope guard |
+| HPCL Super Admin | State list from `approvalStates` if present, otherwise all | No | Any exact master SAP |
+| Rohan `role=zone`, zone level | Assigned zone/RO, with SAP fallback when SA restriction applies | Yes within old and proposed row scope; nonnull scope forces import append | Any exact master SAP |
+| HPCL Zone Officer | Assigned zone/RO/SA | No | Any exact master SAP |
+| Rohan or HPCL `role=zone`, regional level | Assigned RO and sales areas; missing SA yields no rows | Rohan: yes within scope, forced import append. HPCL: no | Any exact master SAP |
+| Outlet account | Exact session SAP | No | Any exact master SAP |
+
+The outlet session is accepted by `misUser` without a fresh profile lookup. A missing zone or required regional SA assignment gives empty MIS row scope. `misScopeSql` guards reads/export/bulk delete; `misRowInScope` guards create/update/single delete. `outlet` is the exception above. The browser's page visibility does not change these conditions. The separate `api.php` pending approval route uses different guards; see [MIS audit](MIS_AUDIT_REPORT.md) and [API audit](API_AUDIT_REPORT.md).
 
 ## API data-entry and pending eligibility (source audited)
 

@@ -6,7 +6,7 @@ This folder records the current state of the offline Android migration. **The An
 
 | Area | Completed work | Evidence |
 |---|---|---|
-| Source review | Inventory confirms 87 PHP actions and 305 helpers. All 23 authentication actions/63 reachable focus-file helpers, 37 orders actions/129 order helpers, and 19 API actions/32 route-reachable API helpers have source contracts; four API helpers are not route-reachable and three authentication helpers have unknown reachability. Eight MIS actions remain pending | [Authentication audit](AUTHENTICATION_AUDIT_REPORT.md), [orders audit](ORDERS_AUDIT_REPORT.md), [API audit](API_AUDIT_REPORT.md), [source audit](SOURCE_CODE_AUDIT.md) |
+| Source review | Inventory confirms 87 PHP actions and 305 helpers. All 23 authentication, 37 orders, 19 API and eight MIS actions have source contracts. MIS also has 45 core, 25 XLSX and four shared change-log helpers audited; four API helpers are not route-reachable and three authentication helpers have unknown reachability | [Authentication audit](AUTHENTICATION_AUDIT_REPORT.md), [orders audit](ORDERS_AUDIT_REPORT.md), [API audit](API_AUDIT_REPORT.md), [MIS audit](MIS_AUDIT_REPORT.md), [source audit](SOURCE_CODE_AUDIT.md) |
 | Migration planning | An action-by-action working inventory and a partial role matrix | [PHP to TypeScript mapping](PHP_TO_TYPESCRIPT_MAPPING.md), [role matrix](ROLE_PERMISSION_MATRIX.md) |
 | Local database | SQLite seed generated from `03-demo-data/schema.sql` and the supplied JSON, with 13 core tables, local officer accounts and three runtime tables | [Database report](DATABASE_MIGRATION_REPORT.md), `../assets/database/rohan_energy_demo.db` |
 | Expo foundation source | Android-only Expo Router entry, bundled SQLite asset loading, schema-version and foreign-key checks, startup error boundary, EAS build profiles | `../app/`, `../app.config.js`, `../eas.json`, [architecture](ARCHITECTURE.md) |
@@ -28,7 +28,7 @@ The source JSON and SQLite values match. SQLite integrity, original columns/inde
 
 ## What remains
 
-- Complete the behavioral audit and fill every mapping row with inputs, validation, authorization, database effects and tests.
+- Resolve source gaps and product/security decisions recorded in the four module audits; validate behavior against a PHP runtime and original workbook when available.
 - Align the installed Expo project to React Native 0.88.1, install `expo-dev-client` and ESLint with registry access, then validate a development build. TypeScript already passes.
 - Implement authentication, account management, role switching and domain-level authorization.
 - Implement master data, orders, approvals, delivery, returns, MIS, reports, Excel, matching PDFs and all 18 original page IDs.
@@ -51,6 +51,6 @@ The last run passed nine tests and found no runtime network references in the ex
 
 ## Exact next task
 
-Audit the remaining eight `mis.php` actions and 74 MIS/other helpers; resolve the three unknown-reachability authentication helpers and omitted live source/workbook where required. Then verify PHP-compatible bcrypt, install React Native 0.88.1 and `expo-dev-client` with registry access, and run an EAS Android startup/restart/airplane-mode check. Phase 0 and Phase 1 are not complete. The detailed status table is in [module implementation status](MODULE_IMPLEMENTATION_STATUS.md). The client belongs to the parent Git repository; review and commit there, then push manually.
+Review the [MIS audit](MIS_AUDIT_REPORT.md) and its unresolved template, scope and concurrency decisions; obtain the missing live source/workbook if exact parity is required. Then resolve the three unknown-reachability authentication helpers, verify PHP-compatible bcrypt, install React Native 0.88.1 and `expo-dev-client` with registry access, and run an EAS Android startup/restart/airplane-mode check. Phase 0 and Phase 1 are not complete. The detailed status table is in [module implementation status](MODULE_IMPLEMENTATION_STATUS.md). The client belongs to the parent Git repository; review and commit there, then push manually.
 
 
