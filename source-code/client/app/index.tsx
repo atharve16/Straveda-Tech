@@ -1,37 +1,654 @@
+import React, { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, SafeAreaView, StyleSheet, View } from 'react-native';
 import { useSQLiteContext } from 'expo-sqlite';
 import * as DocumentPicker from 'expo-document-picker';
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
-import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { Actor, MisRow, Order, Pending, addMis, canDecideOrder, canDecidePending, canEditMis, createOrderDraft, dashboard, decideOrder, decidePending, deleteMis, exportMisRows, importMis, listMis, listOrders, listOutlets, listPending, listProducts, login, submitOrder, submitPending, updateMis } from '../src/domain';
-import { misCsv, parseMisCsv } from '../src/csv';
 
-type Tab = 'Dashboard' | 'MIS' | 'Orders' | 'Pending' | 'Reports' | 'History';
-const tabs: Tab[] = ['Dashboard','MIS','Orders','Pending','Reports','History'];
-function Action({title,onPress}: {title:string;onPress:()=>void}) { return <Pressable style={s.button} onPress={onPress}><Text style={s.buttonText}>{title}</Text></Pressable>; }
-function Field({label,value,onChangeText,secureTextEntry=false,keyboardType}: {label:string;value:string;onChangeText:(v:string)=>void;secureTextEntry?:boolean;keyboardType?:'numeric'}) { return <View><Text style={s.label}>{label}</Text><TextInput style={s.input} value={value} onChangeText={onChangeText} secureTextEntry={secureTextEntry} keyboardType={keyboardType} autoCapitalize="none" /></View>; }
+// Domain and CSV services (unchanged)
+import {
+  Actor,
+  MisRow,
+  Order,
+  Pending,
+  addMis,
+  dashboard,
+  decideOrder,
+  decidePending,
+  deleteMis,
+  exportMisRows,
+  listMis,
+  listOrders,
+  listOutlets,
+  listPending,
+  listProducts,
+  submitOrder,
+  submitPending,
+  updateMis,
+} from '../src/domain';
+import { clearSession, loginAndSaveSession, restoreSession } from '../src/session';
+import { canDecideReturns, getOrderDetail, listOrderReturns, previewDraftLines, saveOrderDraft, requestOrderReturn, decideOrderReturn, type OrderDetail, type OrderReturn } from '../src/order-workflows';
+import { pickAndSaveOrderFile, shareOrderFile } from '../src/order-files';
+import type { OrderFileKind } from '../src/order-file-validation';
+import { misCsv, parseMisCsvDetailed } from '../src/csv';
+import { commitMisImport, deleteSelectedMis, listMisHistory, previewMisImport, type MisImportPreview } from '../src/mis-workflows';
+import type { MisHistory } from '../src/mis-history';
+import { listInventory, type InventorySnapshot } from '../src/inventory';
+import { setProductStock, setStockEnabled } from '../src/stock';
+import { changeOwnPassword } from '../src/profile';
+import { colors } from '../src/theme/tokens';
+
+// UI Components & Navigation
+import { AppHeader } from '../src/components/navigation/AppHeader';
+import { AppBottomNavigation, MainTab } from '../src/components/navigation/AppBottomNavigation';
+import { MoreMenuModal, SubSectionId } from '../src/components/navigation/MoreMenuModal';
+import { ErrorBanner } from '../src/components/common/Feedback';
+import { DocumentViewerModal } from '../src/components/domain/DocumentViewerModal';
+
+// Screens
+import { AuthScreen } from '../src/screens/AuthScreen';
+import { DashboardScreen } from '../src/screens/DashboardScreen';
+import { OrdersScreen } from '../src/screens/OrdersScreen';
+import { MisScreen } from '../src/screens/MisScreen';
+import { ApprovalsScreen } from '../src/screens/ApprovalsScreen';
+import { ReportsScreen } from '../src/screens/ReportsScreen';
+import { InventoryScreen } from '../src/screens/InventoryScreen';
+import { AdminScreen } from '../src/screens/AdminScreen';
+import { ProfileSettingsScreen } from '../src/screens/ProfileSettingsScreen';
+import { HistoryScreen } from '../src/screens/HistoryScreen';
+import { PlaceholderScreen } from '../src/screens/PlaceholderScreen';
+
 export default function App() {
-  const db=useSQLiteContext();
-  const operation=useRef(false);
-  const [actor,setActor]=useState<Actor|null>(null),[username,setUsername]=useState(''),[password,setPassword]=useState(''),[org,setOrg]=useState('rohan');
-  const [tab,setTab]=useState<Tab>('Dashboard'),[busy,setBusy]=useState(false),[error,setError]=useState(''),[version,setVersion]=useState(0);
-  const [metrics,setMetrics]=useState({orders:0,mis:0,pending:0,litres:0}),[mis,setMis]=useState<MisRow[]>([]),[orders,setOrders]=useState<Order[]>([]),[pending,setPending]=useState<Pending[]>([]),[history,setHistory]=useState<{id:number;action:string;detail:string;at:string}[]>([]);
-  const [search,setSearch]=useState(''),[date,setDate]=useState(new Date().toISOString().slice(0,10)),[sap,setSap]=useState(''),[item,setItem]=useState('HP DEF - 1X20L'),[ea,setEa]=useState(''),[reason,setReason]=useState('');
-  const [selectedMis,setSelectedMis]=useState<MisRow|null>(null);
-  const [products,setProducts]=useState<{pid:number;name:string;brand:string}[]>([]),[outlets,setOutlets]=useState<{sap_code:string;outlet_name:string}[]>([]);
-  useEffect(()=>{if(!actor)return; let live=true;setBusy(true);setError('');Promise.all([listMis(db,actor,search),listOrders(db,actor),listPending(db,actor),dashboard(db,actor),listProducts(db),listOutlets(db,actor),db.getAllAsync<{id:number;actor:string;action:string;detail:string;at:string}>('SELECT * FROM app_history ORDER BY id DESC LIMIT 100')]).then(([m,o,p,d,pr,ol,h])=>{if(live){setMis(m);setOrders(o);setPending(p);setMetrics(d);setProducts(pr);setOutlets(ol);setHistory(h.filter(x=>actor.role==='superadmin'&&actor.org==='rohan'||x.actor===actor.username));}}).catch(()=>{if(live)setError('Local data could not be read.');}).finally(()=>{if(live)setBusy(false);});return()=>{live=false;};},[db,actor,search,version]);
-  async function run(action:()=>Promise<void>){if(operation.current)return;operation.current=true;setBusy(true);setError('');try{await action();setVersion(v=>v+1);}catch(e){const message=e instanceof Error?e.message:String(e);setError(/unique constraint/i.test(message)?'This entry is already pending.':/sqlite|sql error|constraint failed/i.test(message)?'Local database action failed. No changes were saved.':message);}finally{operation.current=false;setBusy(false);}}
-  async function pickCsv(){if(!actor)return;await run(async()=>{const picked=await DocumentPicker.getDocumentAsync({type:['text/csv','text/plain','application/vnd.ms-excel'],copyToCacheDirectory:true});if(picked.canceled)return;if((picked.assets[0].size||0)>5_000_000)throw new Error('CSV must be 5 MB or smaller.');const raw=await new File(picked.assets[0].uri).text();const count=await importMis(db,actor,parseMisCsv(raw));Alert.alert('MIS import',`${count} rows imported.`);});}
-  async function shareCsv(){if(!actor)return;await run(async()=>{const rows=await exportMisRows(db,actor);const file=new File(Paths.cache,`straveda-mis-${Date.now()}.csv`);file.create({overwrite:true});await file.write(misCsv(rows));if(!await Sharing.isAvailableAsync())throw new Error('Android sharing is unavailable.');await Sharing.shareAsync(file.uri,{mimeType:'text/csv',dialogTitle:'Export scoped MIS data'});});}
-  if(!actor)return <SafeAreaView style={s.page}><ScrollView contentContainerStyle={s.content}><Text style={s.title}>STRAVEDA</Text><Text style={s.subtitle}>Offline demo sign in</Text><View style={s.row}>{['rohan','hpcl','outlet'].map(x=><Pressable key={x} style={[s.chip,org===x&&s.selected]} onPress={()=>setOrg(x)}><Text>{x.toUpperCase()}</Text></Pressable>)}</View><Field label={org==='outlet'?'SAP code':'Username'} value={username} onChangeText={setUsername}/><Field label="Password" value={password} onChangeText={setPassword} secureTextEntry/><Action title={busy?'Signing in…':'Sign in'} onPress={()=>void run(async()=>{const a=await login(db,username,password,org);setPassword('');setActor(a);})}/>{error?<Text style={s.error}>{error}</Text>:null}<Text style={s.muted}>Demo officer: demo_super · Password: Demo@12345</Text></ScrollView></SafeAreaView>;
-  return <SafeAreaView style={s.page}><View style={s.header}><View><Text style={s.title}>STRAVEDA</Text><Text style={s.muted}>{actor.label}</Text></View><Pressable onPress={()=>{setActor(null);setTab('Dashboard');setSearch('');}}><Text style={s.link}>Log out</Text></Pressable></View><ScrollView horizontal style={s.nav} contentContainerStyle={s.navInner}>{tabs.map(t=><Pressable key={t} style={[s.chip,tab===t&&s.selected]} onPress={()=>setTab(t)}><Text>{t}</Text></Pressable>)}</ScrollView><ScrollView contentContainerStyle={s.content}>{busy?<ActivityIndicator/>:null}{error?<Text style={s.error}>{error}</Text>:null}
-    {tab==='Dashboard'&&<><Text style={s.heading}>Dashboard</Text><Text style={s.card}>Orders: {metrics.orders} · MIS rows: {metrics.mis}</Text><Text style={s.card}>Pending entries: {metrics.pending} · Litres: {metrics.litres.toFixed(2)}</Text><Text style={s.muted}>Figures reflect your local account scope.</Text></>}
-    {tab==='MIS'&&<><Text style={s.heading}>MIS data</Text><Field label="Search date, outlet, SAP or item" value={search} onChangeText={setSearch}/><Text style={s.muted}>Showing {mis.length} scoped rows (up to 500 recent records).</Text><Action title="Export all scoped rows as CSV" onPress={()=>void shareCsv()}/>{canEditMis(actor)&&<View style={s.card}><Text style={s.heading}>{selectedMis?'Edit MIS row':'Add MIS row'}</Text><Field label="Date YYYY-MM-DD" value={date} onChangeText={setDate}/>{!selectedMis&&<><Field label="Outlet SAP" value={sap} onChangeText={setSap}/><Field label="Item" value={item} onChangeText={setItem}/></>}<Field label="EA" value={ea} onChangeText={setEa} keyboardType="numeric"/><Action title={selectedMis?'Update row':'Save MIS row'} onPress={()=>void run(async()=>{if(selectedMis){await updateMis(db,actor,selectedMis,date,ea);setSelectedMis(null);}else await addMis(db,actor,date,sap,item,ea);})}/>{selectedMis&&<Action title="Cancel edit" onPress={()=>setSelectedMis(null)}/>}<Action title="Import CSV (append)" onPress={()=>void pickCsv()}/><Text style={s.muted}>CSV headings: d,sap,item,ea. All rows must be valid and in scope.</Text></View>}{mis.map(r=><View key={r.id} style={s.card}><Text style={s.bold}>{r.d} · {r.outlet}</Text><Text>{r.item} · {r.ea} EA · {r.litres} L</Text><Text style={s.muted}>SAP {r.sap} · {r.src}</Text>{canEditMis(actor)&&<View style={s.row}><Action title="Edit" onPress={()=>{setSelectedMis(r);setDate(r.d);setEa(r.ea);}}/><Action title="Delete" onPress={()=>Alert.alert('Delete MIS row?','This removes the row from current MIS data.',[{text:'Cancel',style:'cancel'},{text:'Delete',style:'destructive',onPress:()=>void run(()=>deleteMis(db,actor,r))}])}/></View>}</View>)}</>}
-    {tab==='Orders'&&<><Text style={s.heading}>Orders</Text><View style={s.card}><Text style={s.bold}>Create one-item draft</Text><Field label="Outlet SAP" value={sap} onChangeText={setSap}/><Field label="Product name" value={item} onChangeText={setItem}/><Field label="Paid EA (whole number)" value={ea} onChangeText={setEa} keyboardType="numeric"/><Action title="Save draft" onPress={()=>void run(()=>createOrderDraft(db,actor,sap,item,ea))}/><Text style={s.muted}>Current products: {products.map(x=>x.name).join(' · ')}</Text><Text style={s.muted}>Visible outlets: {outlets.map(x=>`${x.sap_code} ${x.outlet_name}`).join(' · ')||'None'}</Text></View>{orders.length===0&&<Text>No orders in your area.</Text>}{orders.map(o=><View key={o.id} style={s.card}><Text style={s.bold}>{o.order_ref} · {o.status}</Text><Text>{o.outlet} · {o.total_ea} EA</Text><Text style={s.muted}>{o.zone} · {o.delivery_stage||'No delivery stage'}</Text>{o.created_by===actor.username&&['draft','rejected'].includes(o.status)&&<Action title="Submit order" onPress={()=>void run(()=>submitOrder(db,actor,o.id))}/>} {canDecideOrder(actor,o)&&<View style={s.row}><Action title="Approve" onPress={()=>void run(()=>decideOrder(db,actor,o.id,true))}/><Action title="Reject" onPress={()=>void run(()=>decideOrder(db,actor,o.id,false,reason))}/></View>}</View>)}<Field label="Rejection reason" value={reason} onChangeText={setReason}/></>}
-    {tab==='Pending'&&<><Text style={s.heading}>Pending MIS entries</Text><View style={s.card}><Text style={s.bold}>Submit an entry</Text><Field label="Date YYYY-MM-DD" value={date} onChangeText={setDate}/><Field label="Outlet SAP" value={sap} onChangeText={setSap}/><Field label="Item" value={item} onChangeText={setItem}/><Field label="EA" value={ea} onChangeText={setEa} keyboardType="numeric"/><Action title="Submit for approval" onPress={()=>void run(()=>submitPending(db,actor,date,sap,item,ea))}/></View>{pending.length===0&&<Text>No pending entries.</Text>}{pending.map(p=><View key={p.id} style={s.card}><Text style={s.bold}>#{p.id} · {p.status}</Text><Text>{p.d} · {p.outlet} · {p.item} · {p.ea} EA</Text><Text style={s.muted}>By {p.submitted_by}{p.reason?` · ${p.reason}`:''}</Text>{p.status==='pending'&&canDecidePending(actor)&&<View style={s.row}><Action title="Approve" onPress={()=>void run(()=>decidePending(db,actor,p.id,true))}/><Action title="Reject" onPress={()=>void run(()=>decidePending(db,actor,p.id,false,reason))}/></View>}</View>)}<Field label="Rejection reason" value={reason} onChangeText={setReason}/></>}
-    {tab==='Reports'&&<><Text style={s.heading}>Local summary</Text><Text style={s.card}>MIS rows: {metrics.mis}{'\n'}Volume: {metrics.litres.toFixed(2)} L{'\n'}Orders: {metrics.orders}{'\n'}Pending entries: {metrics.pending}</Text><Action title="Export scoped MIS CSV" onPress={()=>void shareCsv()}/></>}
-    {tab==='History'&&<><Text style={s.heading}>Local activity</Text>{history.length===0&&<Text>No activity recorded in this app yet.</Text>}{history.map(h=><Text key={h.id} style={s.card}>{h.at} · {h.action}{'\n'}{h.detail}</Text>)}</>}
-  </ScrollView></SafeAreaView>;
+  const db = useSQLiteContext();
+  const operation = useRef(false);
+  const importPicking = useRef(false);
+  const importCommitting = useRef(false);
+
+  // Authentication State
+  const [actor, setActor] = useState<Actor | null>(null);
+  const [restoring, setRestoring] = useState(true);
+
+  // Navigation State
+  const [currentTab, setCurrentTab] = useState<MainTab>('Home');
+  const [activeSubSection, setActiveSubSection] = useState<SubSectionId | null>(null);
+  const [showMoreModal, setShowMoreModal] = useState(false);
+  const [orderInitialTab, setOrderInitialTab] = useState<'list' | 'create'>('list');
+
+  // Operation / Loading / Error State
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [version, setVersion] = useState(0);
+
+  // Domain Data State
+  const [metrics, setMetrics] = useState({ orders: 0, mis: 0, pending: 0, litres: 0 });
+  const [mis, setMis] = useState<MisRow[]>([]);
+  const [misHistory, setMisHistory] = useState<MisHistory[]>([]);
+  const [misImportPreview, setMisImportPreview] = useState<MisImportPreview | null>(null);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [orderReturns, setOrderReturns] = useState<OrderReturn[]>([]);
+  const [standaloneDocDetail, setStandaloneDocDetail] = useState<OrderDetail | null>(null);
+  const [standaloneDocError, setStandaloneDocError] = useState(false);
+  const [returnDecisionAllowed, setReturnDecisionAllowed] = useState(false);
+  const [pending, setPending] = useState<Pending[]>([]);
+  const [history, setHistory] = useState<{ id: number; actor: string; action: string; detail: string; at: string }[]>([]);
+  const [products, setProducts] = useState<{ pid: number; name: string; brand: string }[]>([]);
+  const [outlets, setOutlets] = useState<{ sap_code: string; outlet_name: string }[]>([]);
+  const [inventory, setInventory] = useState<InventorySnapshot | null>(null);
+  const [inventoryLoading, setInventoryLoading] = useState(true);
+  const [inventoryError, setInventoryError] = useState('');
+
+  // Search State for MIS
+  const [misSearch, setMisSearch] = useState('');
+
+  useEffect(() => {
+    let live = true;
+    restoreSession(db)
+      .then(saved => { if (live) setActor(saved); })
+      .catch(() => { if (live) setError('Local session could not be read. Try reopening the app.'); })
+      .finally(() => { if (live) setRestoring(false); });
+    return () => { live = false; };
+  }, [db]);
+
+  // Synchronize data from local SQLite database
+  useEffect(() => {
+    if (!actor) return;
+    let live = true;
+    setBusy(true);
+    setError('');
+
+    Promise.all([
+      listMis(db, actor, misSearch),
+      listMisHistory(db, actor),
+      listOrders(db, actor),
+      listOrderReturns(db, actor),
+      canDecideReturns(db, actor),
+      listPending(db, actor),
+      dashboard(db, actor),
+      listProducts(db),
+      listOutlets(db, actor),
+      db.getAllAsync<{ id: number; actor: string; action: string; detail: string; at: string }>(
+        'SELECT * FROM app_history ORDER BY id DESC LIMIT 100'
+      ),
+    ])
+      .then(([m, mh, o, returns, canDecideReturn, p, d, pr, ol, h]) => {
+        if (live) {
+          setMis(m);
+          setMisHistory(mh);
+          setOrders(o);
+          setOrderReturns(returns);
+          setReturnDecisionAllowed(canDecideReturn);
+          setPending(p);
+          setMetrics(d);
+          setProducts(pr);
+          setOutlets(ol);
+          setHistory(
+            h.filter(
+              x =>
+                (actor.role === 'superadmin' && actor.org === 'rohan') ||
+                x.actor === actor.username
+            )
+          );
+        }
+      })
+      .catch(() => {
+        if (live) setError('Local data could not be read.');
+      })
+      .finally(() => {
+        if (live) setBusy(false);
+      });
+
+    return () => {
+      live = false;
+    };
+  }, [db, actor, misSearch, version]);
+
+  useEffect(() => {
+    if (!actor) { setInventory(null); return; }
+    let live = true;
+    setInventoryLoading(true);
+    setInventoryError('');
+    listInventory(db, actor)
+      .then(snapshot => { if (live) setInventory(snapshot); })
+      .catch(() => { if (live) { setInventory(null); setInventoryError('Inventory could not be read from the local database.'); } })
+      .finally(() => { if (live) setInventoryLoading(false); });
+    return () => { live = false; };
+  }, [db, actor, version]);
+
+  useEffect(() => {
+    setStandaloneDocDetail(null);
+    setStandaloneDocError(false);
+    if (activeSubSection !== 'invoice_preview' || !actor || !orders[0]) return;
+    let live = true;
+    getOrderDetail(db, actor, orders[0].id)
+      .then(detail => { if (live) setStandaloneDocDetail(detail); })
+      .catch(() => { if (live) setStandaloneDocError(true); });
+    return () => { live = false; };
+  }, [activeSubSection, actor, db, orders]);
+
+  // Safe action runner with constraint error formatting
+  async function run(action: () => Promise<void>) {
+    if (operation.current) return;
+    operation.current = true;
+    setBusy(true);
+    setError('');
+    try {
+      await action();
+      setVersion(v => v + 1);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      setError(
+        /unique constraint/i.test(message)
+          ? 'This entry is already pending.'
+          : /sqlite|sql error|constraint failed/i.test(message)
+          ? 'Local database action failed. No changes were saved.'
+          : message
+      );
+      throw e;
+    } finally {
+      operation.current = false;
+      setBusy(false);
+    }
+  }
+
+  // Authentication Handlers
+  async function handleLogin(user: string, pass: string, orgName: string) {
+    await run(async () => {
+      const a = await loginAndSaveSession(db, user, pass, orgName);
+      setActor(a);
+      setCurrentTab('Home');
+      setActiveSubSection(null);
+    });
+  }
+
+  async function handleLogout() {
+    try {
+      await clearSession(db);
+      setActor(null);
+      setCurrentTab('Home');
+      setActiveSubSection(null);
+      setMisSearch('');
+      setError('');
+    } catch {
+      setError('Logout could not clear the local session. Try again.');
+    }
+  }
+
+  // CSV Import & Export Handlers
+  async function pickCsv() {
+    if (!actor || importPicking.current) return;
+    importPicking.current = true;
+    setError('');
+    try {
+      const picked = await DocumentPicker.getDocumentAsync({
+        type: ['text/csv', 'text/plain', 'application/vnd.ms-excel'],
+        copyToCacheDirectory: true,
+      });
+      if (picked.canceled) return;
+      if ((picked.assets[0].size || 0) > 5_000_000) {
+        throw new Error('CSV must be 5 MB or smaller.');
+      }
+      const raw = await new File(picked.assets[0].uri).text();
+      const parsed = parseMisCsvDetailed(raw);
+      setMisImportPreview(await previewMisImport(db, actor, parsed.lines, parsed.skipped, parsed.issues, parsed.rowNumbers));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+      throw e;
+    } finally {
+      importPicking.current = false;
+    }
+  }
+
+  async function commitCsvPreview() {
+    if (!actor || !misImportPreview) throw new Error('No CSV preview is ready.');
+    if (operation.current || importCommitting.current) throw new Error('An import is already in progress.');
+    importCommitting.current = true;
+    try {
+      await run(async () => {
+        const summary = await commitMisImport(db, actor, misImportPreview);
+        setMisImportPreview(null);
+        Alert.alert('MIS Import', `${summary.inserted} inserted · ${summary.skipped} blank rows skipped · ${summary.rejected} rejected.`);
+      });
+    } finally {
+      importCommitting.current = false;
+    }
+  }
+
+  async function shareCsv() {
+    if (!actor) return;
+    await run(async () => {
+      const rows = await exportMisRows(db, actor);
+      const file = new File(Paths.cache, `straveda-mis-${Date.now()}.csv`);
+      file.create({ overwrite: true });
+      await file.write(misCsv(rows));
+      if (!(await Sharing.isAvailableAsync())) {
+        throw new Error('Android sharing is unavailable on this device.');
+      }
+      await Sharing.shareAsync(file.uri, {
+        mimeType: 'text/csv',
+        dialogTitle: 'Export Scoped MIS Data',
+      });
+    });
+  }
+
+  // Navigation handlers
+  function handleSelectMainTab(tab: MainTab) {
+    if (tab === 'More') {
+      setShowMoreModal(true);
+    } else {
+      setCurrentTab(tab);
+      setActiveSubSection(null);
+      if (tab === 'Orders') {
+        setOrderInitialTab('list');
+      }
+    }
+  }
+
+  function handleSelectSubSection(sectionId: SubSectionId) {
+    setActiveSubSection(sectionId);
+  }
+
+  // RENDER: AUTHENTICATION SCREEN
+  if (restoring) {
+    return <View style={{ flex: 1, justifyContent: 'center' }}><ActivityIndicator /></View>;
+  }
+
+  if (!actor) {
+    return (
+      <AuthScreen
+        onLogin={handleLogin}
+        loading={busy}
+        error={error}
+        onErrorDismiss={() => setError('')}
+      />
+    );
+  }
+
+  const orderWorkflow = {
+    onSaveDraft: (sap: string, lines: { item: string; paid: number }[], editId?: number) => run(async () => { await saveOrderDraft(db, actor, sap, lines, editId); }),
+    onPreviewLines: (lines: { item: string; paid: number }[]) => previewDraftLines(db, lines),
+    onGetDetail: (id: number) => getOrderDetail(db, actor, id),
+    onRequestReturn: (id: number, reason: string, creditNote: string) => run(() => requestOrderReturn(db, actor, id, reason, creditNote)),
+    onDecideReturn: (id: number, approve: boolean, comment: string) => run(() => decideOrderReturn(db, actor, id, approve, comment)),
+    onUploadFile: (id: number, kind: OrderFileKind) => run(async () => { await pickAndSaveOrderFile(db, actor, id, kind); }),
+    onShareFile: (orderId: number, file: Parameters<typeof shareOrderFile>[3]) => shareOrderFile(db, actor, orderId, file),
+    returns: orderReturns,
+    returnDecisionAllowed,
+  };
+
+  const misWorkflow = {
+    history: misHistory,
+    importPreview: misImportPreview,
+    onImportCsv: pickCsv,
+    onCommitImport: commitCsvPreview,
+    onCancelImport: () => setMisImportPreview(null),
+    onDeleteSelected: (selected: MisRow[]) => {
+      if (operation.current) throw new Error('Another action is in progress. Try again shortly.');
+      return run(async () => { await deleteSelectedMis(db, actor, selected); });
+    },
+  };
+
+  const inventoryWorkflow = {
+    actor,
+    snapshot: inventory?.actor === actor.username ? inventory : null,
+    loading: inventoryLoading || inventory?.actor !== actor.username,
+    error: inventoryError,
+    onSetStock: (pid: number, value: string) => {
+      if (operation.current) throw new Error('Another action is in progress. Try again shortly.');
+      return run(async () => { await setProductStock(db, actor, pid, value); });
+    },
+    onSetStockEnabled: (enabled: boolean) => {
+      if (operation.current) throw new Error('Another action is in progress. Try again shortly.');
+      return run(async () => { await setStockEnabled(db, actor, enabled); });
+    },
+    onBack: () => setActiveSubSection(null),
+  };
+
+  const profileWorkflow = {
+    actor,
+    onChangePassword: (current: string, next: string) => {
+      if (operation.current) throw new Error('Another action is in progress. Try again shortly.');
+      return run(() => changeOwnPassword(db, actor, current, next));
+    },
+    onLogout: handleLogout,
+    onBack: () => setActiveSubSection(null),
+  };
+  const adminWorkflow = {
+    actor,
+    outlets: inventory?.actor === actor.username ? inventory.outlets : [],
+    loading: inventoryLoading || inventory?.actor !== actor.username,
+    error: inventoryError,
+    onBack: () => setActiveSubSection(null),
+  };
+
+  // Determine screen title for top bar
+  const headerTitle =
+    activeSubSection === 'rawdata'
+      ? 'Raw MIS Data'
+      : activeSubSection === 'entry'
+      ? 'Direct Data Entry'
+      : activeSubSection === 'returns'
+      ? 'Order Returns'
+      : activeSubSection === 'pod_upload'
+      ? 'Proof of Delivery'
+      : activeSubSection === 'reports'
+      ? 'Reports & Analytics'
+      : activeSubSection === 'roreport'
+      ? 'RO Reports'
+      : activeSubSection === 'inventory'
+      ? 'Inventory & Prices'
+      : activeSubSection === 'foc'
+      ? 'FOC Scheme Rules'
+      : activeSubSection === 'sap'
+      ? 'SAP Master Directory'
+      : activeSubSection === 'admin'
+      ? 'Admin Console'
+      : activeSubSection === 'zones'
+      ? 'Zones & Regions'
+      : activeSubSection === 'team'
+      ? 'Team Hierarchy'
+      : activeSubSection === 'outlets'
+      ? 'Outlet Management'
+      : activeSubSection === 'perms'
+      ? 'Permission Matrix'
+      : activeSubSection === 'profile'
+      ? 'User Profile'
+      : activeSubSection === 'password_change'
+      ? 'Change Password'
+      : activeSubSection === 'settings'
+      ? 'Settings & Demo'
+      : activeSubSection === 'history'
+      ? 'Activity Log'
+      : 'STRAVEDA';
+
+  // RENDER: MAIN APPLICATION WORKSPACE
+  return (
+    <SafeAreaView style={styles.appContainer}>
+      {/* Top Header */}
+      <AppHeader
+        actor={actor}
+        onLogout={handleLogout}
+        onOpenSettings={() => setActiveSubSection('settings')}
+        onBack={activeSubSection ? () => setActiveSubSection(null) : undefined}
+        screenTitle={headerTitle}
+      />
+
+      {/* Global Activity / Error Feedback */}
+      {busy ? (
+        <View style={styles.loadingBar}>
+          <ActivityIndicator size="small" color={colors.primary} />
+        </View>
+      ) : null}
+
+      {error ? (
+        <View style={styles.errorContainer}>
+          <ErrorBanner message={error} onDismiss={() => setError('')} />
+        </View>
+      ) : null}
+
+      {/* Main Content Viewport */}
+      <View style={styles.contentViewport}>
+        {/* SUB-SECTION VIEWS (Triggered from More Menu or Settings) */}
+        {activeSubSection === 'rawdata' ? (
+          <MisScreen
+            actor={actor}
+            rows={mis}
+            search={misSearch}
+            onSearchChange={setMisSearch}
+            onExportCsv={shareCsv}
+            {...misWorkflow}
+            onAddRow={(d, s, i, e) => run(() => addMis(db, actor, d, s, i, e))}
+            onUpdateRow={(row, d, e) => run(() => updateMis(db, actor, row, d, e))}
+            onDeleteRow={row => run(() => deleteMis(db, actor, row))}
+            initialTab="rawdata"
+            onBack={() => setActiveSubSection(null)}
+          />
+        ) : activeSubSection === 'entry' ? (
+          <MisScreen
+            actor={actor}
+            rows={mis}
+            search={misSearch}
+            onSearchChange={setMisSearch}
+            onExportCsv={shareCsv}
+            {...misWorkflow}
+            onAddRow={(d, s, i, e) => run(() => addMis(db, actor, d, s, i, e))}
+            onUpdateRow={(row, d, e) => run(() => updateMis(db, actor, row, d, e))}
+            onDeleteRow={row => run(() => deleteMis(db, actor, row))}
+            initialTab="entry"
+            onBack={() => setActiveSubSection(null)}
+          />
+        ) : activeSubSection === 'returns' ? (
+          <OrdersScreen
+            actor={actor}
+            orders={orders}
+            products={products}
+            outlets={outlets}
+            initialTab="returns"
+            {...orderWorkflow}
+            onSubmitOrder={id => run(() => submitOrder(db, actor, id))}
+            onApproveOrder={id => run(() => decideOrder(db, actor, id, true))}
+            onRejectOrder={(id, reason) => run(() => decideOrder(db, actor, id, false, reason))}
+            onBack={() => setActiveSubSection(null)}
+          />
+        ) : activeSubSection === 'pod_upload' ? (
+          <OrdersScreen
+            actor={actor}
+            orders={orders}
+            products={products}
+            outlets={outlets}
+            initialTab="pod"
+            {...orderWorkflow}
+            onSubmitOrder={id => run(() => submitOrder(db, actor, id))}
+            onApproveOrder={id => run(() => decideOrder(db, actor, id, true))}
+            onRejectOrder={(id, reason) => run(() => decideOrder(db, actor, id, false, reason))}
+            onBack={() => setActiveSubSection(null)}
+          />
+        ) : activeSubSection === 'invoice_preview' ? (
+          standaloneDocDetail ? <DocumentViewerModal
+            visible={true}
+            order={standaloneDocDetail.order}
+            detail={standaloneDocDetail}
+            onClose={() => setActiveSubSection(null)}
+          /> : standaloneDocError
+            ? <PlaceholderScreen moduleName="Document Viewer" category="Orders" description="The order document could not be read." features={[]} auditRef="" onBack={() => setActiveSubSection(null)} />
+            : orders[0]
+            ? <View style={{ flex: 1, justifyContent: 'center' }}><ActivityIndicator /></View>
+            : <PlaceholderScreen moduleName="Document Viewer" category="Orders" description="No orders are available." features={[]} auditRef="" onBack={() => setActiveSubSection(null)} />
+        ) : activeSubSection === 'reports' ? (
+          <ReportsScreen
+            actor={actor}
+            misRows={mis}
+            orders={orders}
+            onExportCsv={shareCsv}
+          />
+        ) : activeSubSection === 'roreport' ? (
+          <ReportsScreen
+            actor={actor}
+            misRows={mis}
+            orders={orders}
+            onExportCsv={shareCsv}
+          />
+        ) : activeSubSection === 'inventory' ? (
+          <InventoryScreen key="inventory" {...inventoryWorkflow} />
+        ) : activeSubSection === 'foc' ? (
+          <InventoryScreen key="foc" {...inventoryWorkflow} initialTab="foc" />
+        ) : activeSubSection === 'sap' ? (
+          <InventoryScreen key="sap" {...inventoryWorkflow} initialTab="sap" />
+        ) : activeSubSection === 'admin' ? (
+          <AdminScreen {...adminWorkflow} initialTab="zones" />
+        ) : activeSubSection === 'zones' ? (
+          <AdminScreen {...adminWorkflow} initialTab="zones" />
+        ) : activeSubSection === 'team' ? (
+          <AdminScreen {...adminWorkflow} initialTab="team" />
+        ) : activeSubSection === 'outlets' ? (
+          <AdminScreen {...adminWorkflow} initialTab="outlets" />
+        ) : activeSubSection === 'perms' ? (
+          <AdminScreen {...adminWorkflow} initialTab="perms" />
+        ) : activeSubSection === 'profile' || activeSubSection === 'settings' ? (
+          <ProfileSettingsScreen {...profileWorkflow} />
+        ) : activeSubSection === 'password_change' ? (
+          <ProfileSettingsScreen {...profileWorkflow} initialShowPasswordModal={true} />
+        ) : activeSubSection === 'history' ? (
+          <HistoryScreen
+            actor={actor}
+            history={history}
+            onBack={() => setActiveSubSection(null)}
+          />
+        ) : /* PRIMARY TAB SCREENS */
+        currentTab === 'Home' ? (
+          <DashboardScreen
+            actor={actor}
+            metrics={metrics}
+            orders={orders}
+            pending={pending}
+            history={history}
+            onNavigateTab={tab => {
+              setCurrentTab(tab);
+              setActiveSubSection(null);
+            }}
+            onNewOrder={() => {
+              setCurrentTab('Orders');
+              setOrderInitialTab('create');
+              setActiveSubSection(null);
+            }}
+            onAddMis={() => {
+              setCurrentTab('MIS');
+              setActiveSubSection(null);
+            }}
+            onExportMis={shareCsv}
+            onSubmitOrder={id => void run(() => submitOrder(db, actor, id))}
+            onApproveOrder={id => void run(() => decideOrder(db, actor, id, true))}
+            onRejectOrder={id => void run(() => decideOrder(db, actor, id, false, 'Rejected from Dashboard'))}
+          />
+        ) : currentTab === 'Orders' ? (
+          <OrdersScreen
+            actor={actor}
+            orders={orders}
+            products={products}
+            outlets={outlets}
+            initialTab={orderInitialTab}
+            {...orderWorkflow}
+            onSubmitOrder={id => run(() => submitOrder(db, actor, id))}
+            onApproveOrder={id => run(() => decideOrder(db, actor, id, true))}
+            onRejectOrder={(id, reason) => run(() => decideOrder(db, actor, id, false, reason))}
+          />
+        ) : currentTab === 'MIS' ? (
+          <MisScreen
+            actor={actor}
+            rows={mis}
+            search={misSearch}
+            onSearchChange={setMisSearch}
+            onExportCsv={shareCsv}
+            {...misWorkflow}
+            onAddRow={(d, s, i, e) => run(() => addMis(db, actor, d, s, i, e))}
+            onUpdateRow={(row, d, e) => run(() => updateMis(db, actor, row, d, e))}
+            onDeleteRow={row => run(() => deleteMis(db, actor, row))}
+          />
+        ) : currentTab === 'Approvals' ? (
+          <ApprovalsScreen
+            actor={actor}
+            pendingList={pending}
+            orders={orders}
+            onApprovePending={id => run(() => decidePending(db, actor, id, true))}
+            onRejectPending={(id, reason) => run(() => decidePending(db, actor, id, false, reason))}
+            onSubmitPendingEntry={(d, s, i, e) => run(() => submitPending(db, actor, d, s, i, e))}
+            onApproveOrder={id => run(() => decideOrder(db, actor, id, true))}
+            onRejectOrder={(id, reason) => run(() => decideOrder(db, actor, id, false, reason))}
+          />
+        ) : null}
+      </View>
+
+      {/* Bottom Navigation Bar */}
+      <AppBottomNavigation
+        currentTab={activeSubSection ? 'More' : currentTab}
+        onSelectTab={handleSelectMainTab}
+        pendingApprovalsCount={metrics.pending}
+      />
+
+      {/* Secondary Modules Menu Modal */}
+      <MoreMenuModal
+        visible={showMoreModal}
+        onClose={() => setShowMoreModal(false)}
+        onSelectSection={handleSelectSubSection}
+      />
+    </SafeAreaView>
+  );
 }
-const s=StyleSheet.create({page:{flex:1,backgroundColor:'#f1f5f9'},content:{padding:18,gap:12,paddingBottom:48},header:{padding:18,backgroundColor:'#fff',flexDirection:'row',justifyContent:'space-between',alignItems:'center'},title:{fontSize:26,fontWeight:'800',color:'#153b63'},subtitle:{fontSize:18,color:'#334155'},heading:{fontSize:20,fontWeight:'700',color:'#153b63'},bold:{fontWeight:'700',fontSize:16,color:'#172b4d'},muted:{color:'#64748b'},error:{color:'#b91c1c',padding:8},link:{color:'#145ba1',fontWeight:'700'},nav:{flexGrow:0,maxHeight:57},navInner:{padding:8,gap:8},row:{flexDirection:'row',flexWrap:'wrap',gap:8,alignItems:'center'},chip:{paddingVertical:9,paddingHorizontal:12,backgroundColor:'#e2e8f0',borderRadius:12},selected:{backgroundColor:'#a8cce9'},card:{backgroundColor:'#fff',borderRadius:12,padding:14,gap:8,marginBottom:4},label:{fontWeight:'600',color:'#334155',marginBottom:4},input:{backgroundColor:'#fff',borderColor:'#94a3b8',borderWidth:1,borderRadius:8,padding:10,fontSize:16},button:{backgroundColor:'#155b91',paddingVertical:10,paddingHorizontal:14,borderRadius:8,alignSelf:'flex-start'},buttonText:{color:'#fff',fontWeight:'700'}});
+
+const styles = StyleSheet.create({
+  appContainer: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  loadingBar: {
+    paddingVertical: 3,
+    backgroundColor: colors.primarySubtle,
+    alignItems: 'center',
+  },
+  errorContainer: {
+    paddingHorizontal: 16,
+    paddingTop: 6,
+  },
+  contentViewport: {
+    flex: 1,
+  },
+});

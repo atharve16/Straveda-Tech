@@ -21,7 +21,11 @@ Verification was run on Windows with Node.js 22, Python 3 and the installed Expo
 
 ## Android installation and offline verification
 
-No APK was available when this document was written. `npx eas-cli whoami` returned `Not logged in`, so the cloud build could not start without the owner's Expo account authentication. An Android device installation, database reopen and airplane-mode test have not been performed. The app has no runtime network calls by source scan and release config blocks the two usual network permissions, but only a finished APK and merged manifest can prove the release state.
+No signed APK is available. The EAS project is linked and a remote Android keystore has been created. A previous cloud build failed during dependency installation when React and React DOM versions differed; both are now pinned to 19.3.0 in the local package files. A new cloud build has not been run. Android device installation, database reopen and airplane-mode tests have not been performed. The app has no runtime network calls by source scan and release config blocks the two usual network permissions, but only a finished APK and merged manifest can prove the release state.
+
+Cleanup verification on 22 November 2026: `npm ci --include=dev` completed with 527 packages; `npx expo install --check` reported dependencies up to date. Typecheck, five domain and CSV tests, all 11 database tests, the demo hash check and the offline source scan passed. Inventory reported 87 actions and 305 helpers. The inventory and all 11 database tests also passed using external reference directories through `STRAVEDA_REFERENCE_SOURCE_DIR` and `STRAVEDA_DEMO_DATA_DIR`.
+
+Production Expo configuration retains EAS project `1588b446-83d5-4a51-b162-d97e425ea5c6`, Android package `in.rohanenergy.offline`, and blocked `INTERNET` and `ACCESS_NETWORK_STATE` permissions. Local Android Hermes export succeeded and emitted the 229,376-byte SQLite asset with SHA-256 `99A1D1154B1343111D4DFD29E568ACB01A85E806CC8C1C0B8DC0DFEC0526004A`, matching the committed source. EAS `production-apk` archive inspection completed locally in a temporary directory outside Git: 42 files, 1,602,596 bytes. Reference PHP and demo-data files, `node_modules`, Expo caches, tests and scripts were absent; required app source, configuration, lockfile and SQLite asset were present. The inspection copy includes 1,066,244 bytes of `.git` metadata. No new cloud build or device test was performed.
 
 ## Known limitations and tests not performed
 

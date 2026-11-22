@@ -6,9 +6,9 @@ overwrites the hand-reviewed migration documents.
 
 import re
 import sys
-from pathlib import Path
+from reference_paths import reference_dir
 
-ROOT = Path(__file__).resolve().parents[2] / '02-web-portal-source'
+ROOT = reference_dir('STRAVEDA_REFERENCE_SOURCE_DIR', '02-web-portal-source')
 FILES = [
     'auth.php', 'users-store.php', 'outlet-users.php', 'orders.php',
     'api.php', 'mis.php', 'mis-core.php', 'mis-xlsx.php',

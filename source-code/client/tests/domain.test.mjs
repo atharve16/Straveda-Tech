@@ -24,6 +24,14 @@ test('write permissions and pending decisions', () => {
   assert.equal(canDecideOrder(outlet, order), false);
   assert.equal(canDecideOrder(admin, { ...order, status: 'approved' }), false);
 });
+test('order decision roles do not inherit blanket pending access', () => {
+  const hpclAdmin = { ...admin, username: 'hpcl_admin', org: 'hpcl' };
+  const hpclZone = { ...officer, org: 'hpcl', level: 'zone' };
+  assert.equal(canDecideOrder(hpclAdmin, { ...order, placed_role: 'hpcl_admin' }), false);
+  assert.equal(canDecideOrder(hpclAdmin, { ...order, placed_role: 'hpcl_outlet' }), true);
+  assert.equal(canDecideOrder(hpclZone, { ...order, placed_role: 'hpcl_regional' }), false);
+  assert.equal(canDecideOrder(officer, { ...order, placed_role: 'rohan_regional' }), false);
+});
 test('strict calendar dates', () => {
   assert.equal(validDate('2026-11-22'), true);
   assert.equal(validDate('2026-02-30'), false);

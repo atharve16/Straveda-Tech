@@ -3,9 +3,9 @@ import json
 import re
 import sqlite3
 from pathlib import Path
+from reference_paths import reference_dir
 
-ROOT = Path(__file__).resolve().parents[2]
-SOURCE = ROOT / '03-demo-data'
+SOURCE = reference_dir('STRAVEDA_DEMO_DATA_DIR', '03-demo-data')
 OUT = Path(__file__).resolve().parents[1] / 'assets/database/rohan_energy_demo.db'
 
 
@@ -55,6 +55,11 @@ def sqlite_schema(source: str) -> str:
 
 
 def main():
+    for required in [SOURCE / 'schema.sql', SOURCE / 'json/users.json']:
+        if not required.is_file():
+            raise FileNotFoundError(f'Missing required demo input: {required}. Set STRAVEDA_DEMO_DATA_DIR to the complete demo-data directory.')
+    if not list((SOURCE / 'json').glob('portal_*.json')):
+        raise FileNotFoundError(f'No portal_*.json files found in {SOURCE / "json"}. Set STRAVEDA_DEMO_DATA_DIR to the complete demo-data directory.')
     schema = sqlite_schema((SOURCE / 'schema.sql').read_text(encoding='utf-8'))
     OUT.parent.mkdir(parents=True, exist_ok=True)
     if OUT.exists():

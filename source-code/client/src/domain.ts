@@ -1,13 +1,44 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 import bcrypt from 'bcryptjs';
+import { recordMisHistory } from './mis-history.ts';
+import { isStockEnabled, stockAvailable } from './stock.ts';
 
 export type Actor = { username: string; label: string; role: string; org: string; level: string; zone?: string; ros: string[]; salesAreas: string[]; sap?: string; states: string[] };
 export type MisRow = { id: number; d: string; outlet: string; sap: string; state: string; zone: string; ro: string; sales_area: string; item: string; ea: string; litres: string; src: string; ver: number; notes: string | null };
-export type Order = { id: number; order_ref: string; status: string; order_date: string; outlet: string; sap: string; zone: string; state: string; ro: string; sales_area: string; total_ea: number; created_by: string; placed_role: string; updated_at: string; delivery_stage: string; doc_type?: string; invoice_mode?: string };
+export type Order = { id: number; order_ref: string; status: string; order_date: string; outlet: string; sap: string; zone: string; state: string; ro: string; sales_area: string; total_ea: number; created_by: string; created_by_name?: string; decided_by_name?: string | null; review_comment?: string | null; placed_role: string; updated_at: string; delivery_stage: string; doc_type?: string; invoice_mode?: string; voucher_no?: string | null; invoice_no?: string | null; canDecide?: boolean };
 
 function parseAccount(username: string, data: string): Actor {
   const a = JSON.parse(data);
   return { username, label: a.label || username, role: a.role || '', org: a.org || 'rohan', level: a.level || a.role || '', zone: a.filter?.zone, ros: Array.isArray(a.ros) ? a.ros : [], salesAreas: Array.isArray(a.sales_areas) ? a.sales_areas : [], states: Array.isArray(a.states) ? a.states : [] };
+}
+function accountIsDisabled(data: Record<string, unknown>): boolean {
+  return data.disabled === true || data.disabled === 1 ||
+    data.enabled === false || data.enabled === 0 || data.active === false || data.active === 0 ||
+    data.is_active === false || data.is_active === 0 || data.status === 'disabled' || data.status === 'inactive';
+}
+
+// Rebuild authorization scope from the current account record, never from a saved actor.
+export async function restoreActor(db: SQLiteDatabase, username: string, org: string): Promise<Actor | null> {
+  if (!username || !['rohan', 'hpcl', 'outlet'].includes(org)) return null;
+  if (org === 'outlet') {
+    const row = await db.getFirstAsync<{ sap_code: string; label: string; zone: string; ro: string; disabled?: number | boolean; enabled?: number | boolean; active?: number | boolean }>(
+      'SELECT u.*,o.zone,o.ro FROM portal_outlet_users u JOIN portal_outlets o ON o.sap_code=u.sap_code WHERE u.sap_code=?', username
+    );
+    if (!row || !row.zone || !row.ro || row.disabled === 1 || row.disabled === true || row.enabled === 0 || row.enabled === false || row.active === 0 || row.active === false) return null;
+    return { username: row.sap_code, label: row.label, role: 'outlet', org: 'outlet', level: 'outlet', zone: row.zone, ros: [row.ro], salesAreas: [], sap: row.sap_code, states: [] };
+  }
+  const rows = await db.getAllAsync<{ username: string; data_json: string }>(
+    'SELECT username,data_json FROM officer_accounts WHERE lower(username)=lower(?)', username
+  );
+  if (rows.length !== 1) return null;
+  try {
+    const data: unknown = JSON.parse(rows[0].data_json);
+    if (!data || typeof data !== 'object' || Array.isArray(data) || accountIsDisabled(data as Record<string, unknown>)) return null;
+    const actor = parseAccount(rows[0].username, rows[0].data_json);
+    return actor.org === org && actor.role && actor.level ? actor : null;
+  } catch {
+    return null;
+  }
 }
 export async function login(db: SQLiteDatabase, username: string, password: string, organization: string): Promise<Actor> {
   const name = username.trim();
@@ -42,9 +73,22 @@ export function validDate(d: string): boolean {
 export function canDecideOrder(a: Actor, o: Order): boolean {
   if (o.status !== 'pending' || !inScope(a, o)) return false;
   if (a.sap || a.org === 'rohan' && a.level === 'regional') return false;
-  if (a.role === 'superadmin') return true;
-  if (a.org === 'rohan') return a.level === 'zone' && (o.placed_role === 'rohan_admin' || o.created_by === a.username);
-  return a.level === 'zone' || a.level === 'regional' && (o.placed_role === 'rohan_admin' || o.placed_role === 'hpcl_outlet');
+  if (a.role === 'superadmin') return a.org === 'rohan' ||
+    o.created_by === a.username || ['rohan_admin','rohan_zone','rohan_regional','hpcl_zone','hpcl_regional','hpcl_outlet'].includes(o.placed_role);
+  if (a.org === 'rohan') return a.level === 'zone' &&
+    (o.placed_role === 'rohan_admin' || o.placed_role === 'rohan_zone' && o.created_by === a.username);
+  if (a.level === 'zone') return ['rohan_admin','rohan_zone','rohan_regional','hpcl_admin','hpcl_outlet'].includes(o.placed_role) ||
+    o.placed_role === 'hpcl_zone' && o.created_by === a.username;
+  return a.level === 'regional' && (o.placed_role === 'rohan_admin' || o.placed_role === 'hpcl_outlet');
+}
+export async function canDecideOrderWithTeam(db: SQLiteDatabase, a: Actor, o: Order): Promise<boolean> {
+  if (canDecideOrder(a, o)) return true;
+  if (o.status !== 'pending' || !inScope(a, o) || a.level !== 'zone' || a.sap ||
+      o.placed_role !== `${a.org}_regional`) return false;
+  const account = await db.getFirstAsync<{ data_json: string }>('SELECT data_json FROM officer_accounts WHERE username=?', o.created_by);
+  if (!account) return false;
+  try { return JSON.parse(account.data_json).created_by === a.username; }
+  catch { return false; }
 }
 export async function dashboard(db: SQLiteDatabase, a: Actor) {
   const [orders, mis, pending] = await Promise.all([listOrders(db,a), listMis(db,a), listPending(db,a)]);
@@ -59,8 +103,10 @@ export async function exportMisRows(db:SQLiteDatabase,a:Actor):Promise<MisRow[]>
   return rows.filter(r=>inScope(a,r));
 }
 export async function listOrders(db: SQLiteDatabase, a: Actor): Promise<Order[]> {
-  const rows = await db.getAllAsync<Order>("SELECT id,order_ref,status,order_date,outlet,zone,state,ro,sales_area,total_ea,created_by,placed_role,updated_at,delivery_stage,COALESCE((SELECT sap_code FROM portal_outlets WHERE outlet_name=portal_orders.outlet LIMIT 1),'') AS sap FROM portal_orders ORDER BY id DESC LIMIT 500");
-  return rows.filter(r => inScope(a,r));
+  const rows = await db.getAllAsync<Order>("SELECT id,order_ref,status,order_date,outlet,zone,state,ro,sales_area,total_ea,created_by,placed_role,updated_at,delivery_stage,COALESCE((SELECT sap FROM app_order_sap WHERE order_id=portal_orders.id),(SELECT sap_code FROM portal_outlets WHERE outlet_name=portal_orders.outlet LIMIT 1),'') AS sap FROM portal_orders ORDER BY id DESC LIMIT 500");
+  const scoped = rows.filter(r => inScope(a,r));
+  await Promise.all(scoped.map(async order => { order.canDecide = await canDecideOrderWithTeam(db, a, order); }));
+  return scoped;
 }
 export async function listProducts(db:SQLiteDatabase){return db.getAllAsync<{pid:number;name:string;brand:string}>('SELECT pid,name,brand FROM portal_products ORDER BY pid');}
 export async function listOutlets(db:SQLiteDatabase,a:Actor){const rows=await db.getAllAsync<{sap_code:string;outlet_name:string;zone:string;state:string;ro:string;sales_area:string}>('SELECT sap_code,outlet_name,zone,state,ro,sales_area FROM portal_outlets ORDER BY outlet_name');return rows.filter(r=>inScope(a,{...r,sap:r.sap_code}));}
@@ -87,20 +133,36 @@ export async function createOrderDraft(db:SQLiteDatabase,a:Actor,sap:string,item
 }
 export async function submitOrder(db:SQLiteDatabase,a:Actor,id:number){
   await db.withExclusiveTransactionAsync(async tx=>{
-    const order=await tx.getFirstAsync<Order>("SELECT id,order_ref,status,order_date,outlet,zone,state,ro,sales_area,total_ea,created_by,placed_role,updated_at,delivery_stage,COALESCE((SELECT sap_code FROM portal_outlets WHERE outlet_name=portal_orders.outlet LIMIT 1),'') AS sap FROM portal_orders WHERE id=?",id);
+    const order=await tx.getFirstAsync<Order>("SELECT id,order_ref,status,order_date,outlet,zone,state,ro,sales_area,total_ea,created_by,placed_role,updated_at,delivery_stage,COALESCE((SELECT sap FROM app_order_sap WHERE order_id=portal_orders.id),(SELECT sap_code FROM portal_outlets WHERE outlet_name=portal_orders.outlet LIMIT 1),'') AS sap FROM portal_orders WHERE id=?",id);
     if(!order||!inScope(a,order)||order.created_by!==a.username||!['draft','rejected'].includes(order.status))throw new Error('Only your draft or rejected order can be submitted.');
+    if(a.org!=='rohan'){
+      const admins=await tx.getAllAsync<{data_json:string}>('SELECT data_json FROM officer_accounts');
+      const covered=admins.some(account=>{
+        try {
+          const data=JSON.parse(account.data_json);
+          return data.role==='superadmin' && (data.org===null || data.org==='rohan') &&
+            (!Array.isArray(data.states) || !data.states.length || data.states.includes(order.state));
+        } catch { return false; }
+      });
+      if(!covered)throw new Error('No Rohan Super Admin covers this order state.');
+    }
     const minimum=await tx.getFirstAsync<{svalue:string}>("SELECT svalue FROM portal_settings WHERE skey='min_order_ea'");
-    const items=await tx.getAllAsync<{item:string;paid:number}>('SELECT item,paid FROM portal_order_items WHERE order_id=?',id);
+    const items=await tx.getAllAsync<{item:string;paid:number;ea:number}>('SELECT item,paid,ea FROM portal_order_items WHERE order_id=?',id);
     if(!items.length)throw new Error('Order has no items.');
+    if(items.reduce((sum,line)=>sum+Number(line.ea),0)<Number(minimum?.svalue||0))throw new Error('Order is below the configured minimum.');
+    const enabled=await isStockEnabled(tx);
     for(const line of items){
-      if(Number(line.paid)<Number(minimum?.svalue||1))throw new Error('Order is below the configured minimum.');
       const product=await tx.getFirstAsync<{pid:number}>('SELECT pid FROM portal_products WHERE name=?',line.item);
       if(!product)throw new Error('Order item is no longer available.');
+      if(enabled){
+        const stock=await stockAvailable(tx,product.pid,line.item);
+        if(stock && stock.available<Number(line.ea))throw new Error(`Insufficient stock for ${line.item}.`);
+      }
       const price=await tx.getFirstAsync<{svalue:string}>('SELECT svalue FROM portal_settings WHERE skey=?',`rate_${product.pid}`);
       const gst=await tx.getFirstAsync<{svalue:string}>('SELECT svalue FROM portal_settings WHERE skey=?',`gst_${product.pid}`);
       if(!price||!gst||Number(price.svalue)<=0||Number(gst.svalue)<0||!Number.isFinite(Number(price.svalue))||!Number.isFinite(Number(gst.svalue)))throw new Error('Product price and GST must be configured.');
     }
-    const result=await tx.runAsync("UPDATE portal_orders SET status='pending',submitted_at=datetime('now'),updated_at=datetime('now') WHERE id=? AND status=?",id,order.status);
+    const result=await tx.runAsync("UPDATE portal_orders SET status='pending',submitted_at=datetime('now'),updated_at=datetime('now'),decided_by=NULL,decided_by_name=NULL,decided_at=NULL,review_comment=NULL,delivery_stage='' WHERE id=? AND status=?",id,order.status);
     if(result.changes!==1)throw new Error('Order status changed. Refresh and try again.');
     await tx.runAsync("INSERT INTO portal_order_events(order_id,action,from_status,to_status,username,user_label,org,comment,created_at) VALUES(?,'submit',?,'pending',?,?,?,'',datetime('now'))",id,order.status,a.username,a.label,a.org);
     await tx.runAsync("INSERT INTO app_history(actor,action,detail,at) VALUES(?,?,?,datetime('now'))",a.username,'order_submit',order.order_ref);
@@ -119,7 +181,8 @@ export async function addMis(db: SQLiteDatabase, a: Actor, d: string, sap: strin
   const outlet = await db.getFirstAsync<any>('SELECT * FROM portal_outlets WHERE sap_code=?', sap.trim());
   if (!outlet || !inScope(a, { ...outlet, sap: outlet.sap_code })) throw new Error('Outlet is outside your permitted area.');
   await db.withExclusiveTransactionAsync(async tx => {
-    await tx.runAsync("INSERT INTO portal_mis_rows(d,sale_type,outlet,sap,location,district,state,sales_area,ro,zone,item,ea,litres,xs,src,gone,ver,updated_by,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,'sheet',0,1,?,datetime('now'))", d,'HPCL Retail Outlet',outlet.outlet_name,sap,outlet.sales_area,outlet.district,outlet.state,outlet.sales_area,outlet.ro,outlet.zone,item.trim(),ea.toFixed(2),(ea*20).toFixed(2),'',a.username);
+    const created = await tx.runAsync("INSERT INTO portal_mis_rows(d,sale_type,outlet,sap,location,district,state,sales_area,ro,zone,item,ea,litres,xs,src,gone,ver,updated_by,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,'sheet',0,1,?,datetime('now'))", d,'HPCL Retail Outlet',outlet.outlet_name,sap,outlet.sales_area,outlet.district,outlet.state,outlet.sales_area,outlet.ro,outlet.zone,item.trim(),ea.toFixed(2),(ea*20).toFixed(2),'',a.username);
+    await recordMisHistory(tx,a,'created',{id:Number(created.lastInsertRowId),src:'sheet',sap:outlet.sap_code,zone:outlet.zone,ro:outlet.ro,state:outlet.state,sales_area:outlet.sales_area},`date=${d}; item=${item.trim()}; EA=${ea.toFixed(2)}`);
     await tx.runAsync("INSERT INTO app_history(actor,action,detail,at) VALUES(?,?,?,datetime('now'))",a.username,'mis_add',`${sap} ${item.trim()} ${ea}`);
   });
 }
@@ -133,6 +196,7 @@ export async function updateMis(db: SQLiteDatabase, a: Actor, row: MisRow, d: st
     if (!current || current.gone || !inScope(a,current)) throw new Error('MIS row is no longer available.');
     const result = await tx.runAsync("UPDATE portal_mis_rows SET d=?,ea=?,litres=?,ver=ver+1,updated_by=?,updated_at=datetime('now') WHERE id=? AND ver=? AND gone=0",d,ea.toFixed(2),(ea*20).toFixed(2),a.username,row.id,row.ver);
     if (result.changes!==1) throw new Error('MIS row changed. Refresh and try again.');
+    await recordMisHistory(tx,a,'edited',current,`date: ${current.d} → ${d}; EA: ${current.ea} → ${ea.toFixed(2)}`);
     await tx.runAsync("INSERT INTO app_history(actor,action,detail,at) VALUES(?,?,?,datetime('now'))",a.username,'mis_edit',String(row.id));
   });
 }
@@ -145,6 +209,7 @@ export async function deleteMis(db: SQLiteDatabase, a: Actor, row: MisRow) {
       ? await tx.runAsync("UPDATE portal_mis_rows SET gone=1,ver=ver+1,updated_by=?,updated_at=datetime('now') WHERE id=? AND ver=? AND gone=0",a.username,row.id,row.ver)
       : await tx.runAsync('DELETE FROM portal_mis_rows WHERE id=? AND ver=? AND gone=0',row.id,row.ver);
     if (result.changes!==1) throw new Error('MIS row changed. Refresh and try again.');
+    await recordMisHistory(tx,a,'deleted',current,`date=${current.d}; item=${current.item}; EA=${current.ea}; ${current.src==='order'?'projection hidden':'sheet row removed'}`);
     await tx.runAsync("INSERT INTO app_history(actor,action,detail,at) VALUES(?,?,?,datetime('now'))",a.username,'mis_delete',String(row.id));
   });
 }
@@ -160,7 +225,10 @@ export async function importMis(db: SQLiteDatabase, a: Actor, lines: ImportLine[
     return {line,outlet,ea};
   });
   await db.withExclusiveTransactionAsync(async tx=>{
-    for(const {line,outlet,ea} of prepared) await tx.runAsync("INSERT INTO portal_mis_rows(d,sale_type,outlet,sap,location,district,state,sales_area,ro,zone,item,ea,litres,xs,src,gone,ver,updated_by,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,'sheet',0,1,?,datetime('now'))",line.d,'HPCL Retail Outlet',outlet.outlet_name,line.sap.trim(),outlet.sales_area,outlet.district,outlet.state,outlet.sales_area,outlet.ro,outlet.zone,line.item.trim(),ea.toFixed(2),(ea*20).toFixed(2),'',a.username);
+    for(const {line,outlet,ea} of prepared) {
+      const created=await tx.runAsync("INSERT INTO portal_mis_rows(d,sale_type,outlet,sap,location,district,state,sales_area,ro,zone,item,ea,litres,xs,src,gone,ver,updated_by,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,'sheet',0,1,?,datetime('now'))",line.d,'HPCL Retail Outlet',outlet.outlet_name,line.sap.trim(),outlet.sales_area,outlet.district,outlet.state,outlet.sales_area,outlet.ro,outlet.zone,line.item.trim(),ea.toFixed(2),(ea*20).toFixed(2),'',a.username);
+      await recordMisHistory(tx,a,'imported',{id:Number(created.lastInsertRowId),src:'sheet',sap:outlet.sap_code,zone:outlet.zone,ro:outlet.ro,state:outlet.state,sales_area:outlet.sales_area},`date=${line.d}; item=${line.item.trim()}; EA=${ea.toFixed(2)}`);
+    }
     await tx.runAsync("INSERT INTO app_history(actor,action,detail,at) VALUES(?,?,?,datetime('now'))",a.username,'mis_import',String(prepared.length));
   });
   return prepared.length;
@@ -194,21 +262,18 @@ export async function decidePending(db: SQLiteDatabase, a: Actor, id: number, ap
 export async function decideOrder(db: SQLiteDatabase, a: Actor, id: number, approve: boolean, reason = '') {
   if (!approve && !reason.trim()) throw new Error('Enter a rejection reason.');
   await db.withExclusiveTransactionAsync(async tx => {
-    const row = await tx.getFirstAsync<Order>("SELECT id,order_ref,status,order_date,outlet,zone,state,ro,sales_area,total_ea,created_by,placed_role,updated_at,delivery_stage,doc_type,invoice_mode,COALESCE((SELECT sap_code FROM portal_outlets WHERE outlet_name=portal_orders.outlet LIMIT 1),'') AS sap FROM portal_orders WHERE id=?",id);
-    if (!row || !canDecideOrder(a,row)) throw new Error('Order is not eligible for your approval.');
+    const row = await tx.getFirstAsync<Order>("SELECT id,order_ref,status,order_date,outlet,zone,state,ro,sales_area,total_ea,created_by,placed_role,updated_at,delivery_stage,doc_type,invoice_mode,COALESCE((SELECT sap FROM app_order_sap WHERE order_id=portal_orders.id),(SELECT sap_code FROM portal_outlets WHERE outlet_name=portal_orders.outlet LIMIT 1),'') AS sap FROM portal_orders WHERE id=?",id);
+    if (!row || !(await canDecideOrderWithTeam(tx,a,row))) throw new Error('Order is not eligible for your approval.');
     const items = await tx.getAllAsync<{id:number;item:string;ea:number}>('SELECT id,item,ea FROM portal_order_items WHERE order_id=?',id);
     if (approve) {
       if (!items.length) throw new Error('Order has no items.');
-      const enabled = await tx.getFirstAsync<{svalue:string}>("SELECT svalue FROM portal_settings WHERE skey='cfg_stock_enabled'");
+      const enabled = await isStockEnabled(tx);
       for (const line of items) {
         const product = await tx.getFirstAsync<{pid:number}>('SELECT pid FROM portal_products WHERE name=?',line.item);
         if (!product) throw new Error('Order item no longer exists.');
-        if (enabled?.svalue === '1') {
-          const stock = await tx.getFirstAsync<{svalue:string;updated_at:string}>('SELECT svalue,updated_at FROM portal_settings WHERE skey=?',`stock_${product.pid}`);
-          if (stock) {
-            const used = await tx.getFirstAsync<{n:number}>("SELECT COALESCE(SUM(i.ea),0) AS n FROM portal_order_items i JOIN portal_orders o ON o.id=i.order_id WHERE i.item=? AND o.status='approved' AND o.decided_at>=?",line.item,stock.updated_at);
-            if (Number(stock.svalue)-Number(used?.n||0)<line.ea) throw new Error(`Insufficient stock for ${line.item}.`);
-          }
+        if (enabled) {
+          const stock = await stockAvailable(tx,product.pid,line.item);
+          if (stock && stock.available<line.ea) throw new Error(`Insufficient stock for ${line.item}.`);
         }
         const rate=await tx.getFirstAsync<{svalue:string}>('SELECT svalue FROM portal_settings WHERE skey=?',`rate_${product.pid}`);
         const gst=await tx.getFirstAsync<{svalue:string}>('SELECT svalue FROM portal_settings WHERE skey=?',`gst_${product.pid}`);

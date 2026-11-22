@@ -1,28 +1,23 @@
-# Build instructions (foundation only)
+# Android APK build instructions
 
-The installed Expo SDK 58 tooling (`node_modules/expo/bundledNativeModules.json`) and `EXPO_OFFLINE=1 npx expo install --check` expect React Native 0.88.1. `package.json` and the lockfile pin 0.88.0. `npm view react-native@0.88.1 dist.tarball --offline` returned `ENOTCACHED`, so the compatible release could not be installed without registry access; package files were not changed speculatively. The development EAS profile requires `expo-dev-client`, which is absent. ESLint is absent. No APK or AAB has been built or signed. The foundation does not yet implement the portal.
+The lockfile specifies Expo SDK 58, React Native 0.88.1, React and React DOM 19.3.0, and TypeScript 6.0.3. The client is a partial portal migration. No APK or AAB has been built or signed.
 
-With npm registry access and an Expo/EAS account, from `client/`:
+From `source-code/client/`:
 
 ```sh
-npm ci
-npx expo install react-native@0.88.1 expo-dev-client
-npm install --save-dev eslint eslint-config-expo
+npm ci --include=dev
 npx expo install --check
 npm run typecheck
-npx eslint app --ext .tsx
-python scripts/build_demo_db.py
-python -m unittest discover -s tests/database -v
+npm run test:domain
+npm run test:seed
 npm run check:offline
-npx eas-cli login
-npx eas-cli build --platform android --profile development
-npx eas-cli build --platform android --profile preview
-npx eas-cli build --platform android --profile production-apk
-npx eas-cli build --platform android --profile production
+npx eas-cli build:inspect --platform android --profile production-apk --stage archive --output <temporary-directory-outside-repository> --force
 ```
 
-EAS will ask for Android signing credentials on the first build; let EAS generate and store them securely or supply an existing keystore through its credential flow. Do not commit keystore files or passwords. `preview` and `production-apk` target APK; `production` targets AAB. This configuration has not yet been validated by an actual cloud build. Expo's [APK documentation](https://docs.expo.dev/build-reference/apk/) and [EAS configuration documentation](https://docs.expo.dev/build/eas-json/) describe these profile settings.
+The Expo slug is `rohan-energy-offline`; EAS project ID is `1588b446-83d5-4a51-b162-d97e425ea5c6`; Android application ID is `in.rohanenergy.offline`. The `production-apk` profile sets `buildType` to `apk`. The project is linked and an Android keystore was created remotely. Keep keystore material and passwords out of Git. The previous cloud build failed during dependency installation because React and React DOM differed; those versions now match locally. No new cloud build has completed.
 
-`EAS_BUILD_PROFILE=production NODE_ENV=production npx expo config --json` resolved Android only, package `in.rohanenergy.offline`, no requested Android permissions, and blocked `INTERNET` and `ACCESS_NETWORK_STATE`. The development configuration permits Metro networking. `development` is an internal APK profile with `developmentClient=true`; `preview` and `production-apk` are APK profiles; `production` is an AAB profile. These are configuration checks only: the merged manifest, EAS account/project linkage, signing credentials, cloud build, APK installation, and release cold start remain unverified. Android Studio is not required for the EAS cloud workflow.
+Release configuration blocks `INTERNET` and `ACCESS_NETWORK_STATE`. The development configuration permits Metro networking. These are configuration checks; merged manifest, APK installation and release cold start remain unverified. `preview` and `production-apk` target APK; `production` targets AAB.
 
-A local Android Metro export without Hermes bytecode succeeded and included the SQLite asset with a matching hash. Standard Hermes export failed with `spawn EPERM` when the sandbox prevented launching the compiler. Re-run the normal export and EAS builds in an unrestricted build environment; the diagnostic export is not a substitute for a release build.
+After local verification and when a cloud build is authorized, authenticate with `npx eas-cli login` if needed, then run `npx eas-cli build --platform android --profile production-apk`. After a successful build, inspect the merged manifest, install the APK on a real Android device, and test fresh launch, login, restart persistence and airplane-mode operation. Record actual device results in the testing documentation.
+
+The PHP source and demo-data are optional local reference inputs. Set `STRAVEDA_REFERENCE_SOURCE_DIR` and `STRAVEDA_DEMO_DATA_DIR` if moved outside the repository. APK bundling uses only the committed SQLite asset; it does not regenerate the database.

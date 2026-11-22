@@ -2,6 +2,10 @@ import { SQLiteProvider, type SQLiteDatabase } from 'expo-sqlite';
 import { Stack, type ErrorBoundaryProps } from 'expo-router';
 import { Suspense } from 'react';
 import { ActivityIndicator, Button, Text, View } from 'react-native';
+import { initializeSession } from '../src/session';
+import { initializeOrderWorkflow } from '../src/order-workflows';
+import { recoverOrderFiles } from '../src/order-files';
+import { initializeMisHistory } from '../src/mis-history';
 
 export function ErrorBoundary({ retry }: ErrorBoundaryProps) {
   return (
@@ -32,6 +36,10 @@ async function initialize(db: SQLiteDatabase) {
       CREATE UNIQUE INDEX IF NOT EXISTS app_pending_active_once ON app_pending(submitted_by,d,sap,item,ea) WHERE status='pending';
       CREATE TABLE IF NOT EXISTS app_history (id INTEGER PRIMARY KEY AUTOINCREMENT,actor TEXT NOT NULL,action TEXT NOT NULL,detail TEXT NOT NULL,at TEXT NOT NULL);`);
   });
+  await initializeSession(db);
+  await initializeOrderWorkflow(db);
+  await initializeMisHistory(db);
+  try { await recoverOrderFiles(db); } catch { /* Orphan cleanup can retry at next launch. */ }
 }
 
 export default function RootLayout() {

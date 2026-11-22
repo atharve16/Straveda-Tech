@@ -1,0 +1,20 @@
+# Generated files in the repository and nested client.
+**/node_modules/
+**/.npm-cache/
+**/.expo/
+**/.expo-shared/
+**/.expo-export-check/
+**/.eas-inspect/
+**/__pycache__/
+*.py[cod]
+**/coverage/
+**/dist/
+**/web-build/
+*.log
+*.zip
+*.tar
+*.tgz
+*.apk
+*.aab
+.DS_Store
+Thumbs.db

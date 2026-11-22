@@ -2,15 +2,27 @@ import json
 import sqlite3
 import unittest
 import re
+import sys
 from pathlib import Path
 
 CLIENT = Path(__file__).resolve().parents[2]
-JSON = CLIENT.parent / '03-demo-data/json'
+sys.path.insert(0, str(CLIENT / 'scripts'))
+from reference_paths import reference_dir
+
+SOURCE = reference_dir('STRAVEDA_DEMO_DATA_DIR', '03-demo-data')
+JSON = SOURCE / 'json'
 DB = CLIENT / 'assets/database/rohan_energy_demo.db'
-SCHEMA = CLIENT.parent / '03-demo-data/schema.sql'
+SCHEMA = SOURCE / 'schema.sql'
 
 
 class DemoSeedTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        if not SCHEMA.is_file() or not list(JSON.glob('portal_*.json')):
+            raise FileNotFoundError(
+                f'Incomplete demo reference data in {SOURCE}. Set STRAVEDA_DEMO_DATA_DIR to the complete demo-data directory.'
+            )
+
     def setUp(self):
         self.db = sqlite3.connect(DB)
         self.db.execute('PRAGMA foreign_keys=ON')
