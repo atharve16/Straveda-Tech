@@ -1,5 +1,18 @@
 # Offline security design and limitations
 
+## API source security audit (Task 04)
+
+All 19 API branches are in [API_AUDIT_REPORT.md](API_AUDIT_REPORT.md). These are PHP observations, not Android controls already implemented.
+
+- `api.php:42-85` opens MySQL before session/CSRF validation, has no action-specific method gate, and checks CSRF only for POST. A JSON-body GET can mutate data without this check. Many errors use HTTP 200; uncaught PDO exceptions have no router-wide catch.
+- `ro_lookup` and `get_targets` have no session check; the former can expose cross-zone outlet geography and reference-DB error messages. `pending_count` exposes a global count to any session. `ref_lists` checks only that a session exists (`api.php:214-221,249-259,568-677`).
+- Direct MIS writes use current `misUser.edit` and `misRowInScope`, but pending submit checks only a session. Pending approval checks non-HPCL Super Admin role, without state, creator, self or geography restrictions. `hidden_pages` is UI state, not a domain guard (`api.php:465-564,679-862`).
+- `approvePending` reads a pending row before its transaction without a lock, inserts a MIS row, then updates pending by ID without a status condition or affected-row check. Two approvers may create duplicate MIS rows. `rejectPending` logs and reports success even if no pending row changed. `editPending`/`deletePending` have SELECT–write races and no audit history (`api.php:745-862`).
+- `logAudit` catches and discards failures, so audit rows are not guaranteed. It logs free-form details after mutations and records no structured old/new values or IP. Pending edit/delete are absent. `audit_log.limit` has no bound; `save_note` can succeed for a nonexistent MIS row (`api.php:185-235`).
+- `importData` has no server row/payload cap or duplicate check, and returns raw SQL exception text. Target saves accept arbitrary month/type/value and integer-cast negative volume; target reads are public (`api.php:249-279,529-564`).
+
+The future local service needs explicit actor checks, scoped reads/writes and atomic pending transitions. Differences from PHP's weak guards or partial audit behavior require a recorded product/security decision and regression tests. Missing live configuration, officer roster, pending table and reference DB prevent runtime parity verification.
+
 ## Orders source security audit (Task 03)
 
 The 37 action contracts are in [ORDERS_AUDIT_REPORT.md](ORDERS_AUDIT_REPORT.md). These observations are PHP source behavior, not Android controls already built.

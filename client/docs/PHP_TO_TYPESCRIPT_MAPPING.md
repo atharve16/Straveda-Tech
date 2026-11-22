@@ -1,6 +1,6 @@
 # PHP to TypeScript mapping — working inventory
 
-Each row is a distinct endpoint/action pair to evaluate for a local Android service. There are 87 rows, including `orders.public_invoice`; repeated action words at different endpoints are separate contracts. The 23 `auth.php` source contracts are `AUDITED` in [AUTHENTICATION_AUDIT_REPORT.md](AUTHENTICATION_AUDIT_REPORT.md), and the 37 `orders.php` contracts are `AUDITED` in [ORDERS_AUDIT_REPORT.md](ORDERS_AUDIT_REPORT.md). The remaining 27 API/MIS actions need audit. TypeScript service names and test paths are proposed migration targets, not existing code. No action has a working Android business implementation or a `client/src/` service. The 305 helper statuses are tracked in `SOURCE_CODE_AUDIT.md`.
+Each row is a distinct endpoint/action pair to evaluate for a local Android service. There are 87 rows, including `orders.public_invoice`; repeated action words at different endpoints are separate contracts. The 23 `auth.php` source contracts are `AUDITED` in [AUTHENTICATION_AUDIT_REPORT.md](AUTHENTICATION_AUDIT_REPORT.md), the 37 `orders.php` contracts are `AUDITED` in [ORDERS_AUDIT_REPORT.md](ORDERS_AUDIT_REPORT.md), and the 19 `api.php` contracts are `AUDITED` in [API_AUDIT_REPORT.md](API_AUDIT_REPORT.md). The remaining eight MIS actions need audit. TypeScript service names and test paths are proposed migration targets, not existing code. No action has a working Android business implementation or a `client/src/` service. The 305 helper statuses are tracked in `SOURCE_CODE_AUDIT.md`.
 
 | PHP location | Action | PHP helper | Planned TypeScript service | Automated test | Status |
 |---|---|---|---|---|---|
@@ -64,25 +64,25 @@ Each row is a distinct endpoint/action pair to evaluate for a local Android serv
 | `orders.php:1130` | `superiors` | `ordSuperiors` | `orders.superiors` | `tests/regression/orders/superiors.test.ts` | AUDITED |
 | `orders.php:1131` | `approve` | `ordDecide` | `orders.approve` | `tests/regression/orders/approve.test.ts` | AUDITED |
 | `orders.php:1132` | `reject` | `ordDecide` | `orders.reject` | `tests/regression/orders/reject.test.ts` | AUDITED |
-| `api.php:60` | `sales` | `getSales` | `api.sales` | `tests/regression/api/sales.test.ts` | NEEDS_CLARIFICATION |
-| `api.php:61` | `add` | `addEntry` | `api.add` | `tests/regression/api/add.test.ts` | NEEDS_CLARIFICATION |
-| `api.php:62` | `update` | `updateEntry` | `api.update` | `tests/regression/api/update.test.ts` | NEEDS_CLARIFICATION |
-| `api.php:63` | `delete` | `deleteEntry` | `api.delete` | `tests/regression/api/delete.test.ts` | NEEDS_CLARIFICATION |
-| `api.php:64` | `import` | `importData` | `api.import` | `tests/regression/api/import.test.ts` | NEEDS_CLARIFICATION |
-| `api.php:65` | `ro_lookup` | `roLookup` | `api.ro_lookup` | `tests/regression/api/ro_lookup.test.ts` | NEEDS_CLARIFICATION |
-| `api.php:66` | `ref_lists` | `refLists` | `api.ref_lists` | `tests/regression/api/ref_lists.test.ts` | NEEDS_CLARIFICATION |
-| `api.php:67` | `add_pending` | `addPending` | `api.add_pending` | `tests/regression/api/add_pending.test.ts` | NEEDS_CLARIFICATION |
-| `api.php:68` | `list_pending` | `listPending` | `api.list_pending` | `tests/regression/api/list_pending.test.ts` | NEEDS_CLARIFICATION |
-| `api.php:69` | `my_pending` | `myPending` | `api.my_pending` | `tests/regression/api/my_pending.test.ts` | NEEDS_CLARIFICATION |
-| `api.php:70` | `approve` | `approvePending` | `api.approve` | `tests/regression/api/approve.test.ts` | NEEDS_CLARIFICATION |
-| `api.php:71` | `reject` | `rejectPending` | `api.reject` | `tests/regression/api/reject.test.ts` | NEEDS_CLARIFICATION |
-| `api.php:72` | `edit_pending` | `editPending` | `api.edit_pending` | `tests/regression/api/edit_pending.test.ts` | NEEDS_CLARIFICATION |
-| `api.php:73` | `delete_pending` | `deletePending` | `api.delete_pending` | `tests/regression/api/delete_pending.test.ts` | NEEDS_CLARIFICATION |
-| `api.php:74` | `audit_log` | `getAuditLog` | `api.audit_log` | `tests/regression/api/audit_log.test.ts` | NEEDS_CLARIFICATION |
-| `api.php:75` | `pending_count` | `pendingCount` | `api.pending_count` | `tests/regression/api/pending_count.test.ts` | NEEDS_CLARIFICATION |
-| `api.php:76` | `save_note` | `saveNote` | `api.save_note` | `tests/regression/api/save_note.test.ts` | NEEDS_CLARIFICATION |
-| `api.php:77` | `get_targets` | `getTargets` | `api.get_targets` | `tests/regression/api/get_targets.test.ts` | NEEDS_CLARIFICATION |
-| `api.php:78` | `save_target` | `saveTarget` | `api.save_target` | `tests/regression/api/save_target.test.ts` | NEEDS_CLARIFICATION |
+| `api.php:60` | `sales` | `getSales` | `api.sales` | `tests/regression/api/sales.test.ts` | AUDITED |
+| `api.php:61` | `add` | `addEntry` | `api.add` | `tests/regression/api/add.test.ts` | AUDITED |
+| `api.php:62` | `update` | `updateEntry` | `api.update` | `tests/regression/api/update.test.ts` | AUDITED |
+| `api.php:63` | `delete` | `deleteEntry` | `api.delete` | `tests/regression/api/delete.test.ts` | AUDITED |
+| `api.php:64` | `import` | `importData` | `api.import` | `tests/regression/api/import.test.ts` | AUDITED |
+| `api.php:65` | `ro_lookup` | `roLookup` | `api.ro_lookup` | `tests/regression/api/ro_lookup.test.ts` | AUDITED |
+| `api.php:66` | `ref_lists` | `refLists` | `api.ref_lists` | `tests/regression/api/ref_lists.test.ts` | AUDITED |
+| `api.php:67` | `add_pending` | `addPending` | `api.add_pending` | `tests/regression/api/add_pending.test.ts` | AUDITED |
+| `api.php:68` | `list_pending` | `listPending` | `api.list_pending` | `tests/regression/api/list_pending.test.ts` | AUDITED |
+| `api.php:69` | `my_pending` | `myPending` | `api.my_pending` | `tests/regression/api/my_pending.test.ts` | AUDITED |
+| `api.php:70` | `approve` | `approvePending` | `api.approve` | `tests/regression/api/approve.test.ts` | AUDITED |
+| `api.php:71` | `reject` | `rejectPending` | `api.reject` | `tests/regression/api/reject.test.ts` | AUDITED |
+| `api.php:72` | `edit_pending` | `editPending` | `api.edit_pending` | `tests/regression/api/edit_pending.test.ts` | AUDITED |
+| `api.php:73` | `delete_pending` | `deletePending` | `api.delete_pending` | `tests/regression/api/delete_pending.test.ts` | AUDITED |
+| `api.php:74` | `audit_log` | `getAuditLog` | `api.audit_log` | `tests/regression/api/audit_log.test.ts` | AUDITED |
+| `api.php:75` | `pending_count` | `pendingCount` | `api.pending_count` | `tests/regression/api/pending_count.test.ts` | AUDITED |
+| `api.php:76` | `save_note` | `saveNote` | `api.save_note` | `tests/regression/api/save_note.test.ts` | AUDITED |
+| `api.php:77` | `get_targets` | `getTargets` | `api.get_targets` | `tests/regression/api/get_targets.test.ts` | AUDITED |
+| `api.php:78` | `save_target` | `saveTarget` | `api.save_target` | `tests/regression/api/save_target.test.ts` | AUDITED |
 | `mis.php:32` | `get` | `see dispatch body` | `mis.get` | `tests/regression/mis/get.test.ts` | NEEDS_CLARIFICATION |
 | `mis.php:34` | `ver` | `misOut` | `mis.ver` | `tests/regression/mis/ver.test.ts` | NEEDS_CLARIFICATION |
 | `mis.php:35` | `download` | `misDownload` | `mis.download` | `tests/regression/mis/download.test.ts` | NEEDS_CLARIFICATION |
@@ -104,7 +104,7 @@ Each row is a distinct endpoint/action pair to evaluate for a local Android serv
 | `orders.return_request`, `orders.return_decide` | Order/return ID, reason, credit note, decision/comment | Visible approved delivered order; decision permission and scope; no nonadmin self-decision | Read order/returns/permissions; insert/update return and event | Order/return; 403/404/409/422 | Delivery, duplicate requests, self-decision, state scope, permission |
 | `mis.get`, `mis.ver` | Full action inputs still pending | `misScopeSql`; full action guard pending | `misSync` reads orders/items/MIS and conditionally updates MIS and revision | Full action return/error contract pending | Stale deletion, duplicate prevention, no-op revision, scope |
 
-The 23 authentication contracts are documented in [AUTHENTICATION_AUDIT_REPORT.md](AUTHENTICATION_AUDIT_REPORT.md). Each of the 37 order rows above maps to the individually numbered request/response, authorization, data-effect and Android/test contract in [ORDERS_AUDIT_REPORT.md](ORDERS_AUDIT_REPORT.md); this table supplies its planned service and test path. The short fragments above are supplementary. The other 27 API/MIS action rows still require complete source review. Listed TypeScript names and test paths are planned, not implemented.
+The 23 authentication contracts are documented in [AUTHENTICATION_AUDIT_REPORT.md](AUTHENTICATION_AUDIT_REPORT.md). Each of the 37 order rows above maps to the individually numbered request/response, authorization, data-effect and Android/test contract in [ORDERS_AUDIT_REPORT.md](ORDERS_AUDIT_REPORT.md); the 19 API rows map to [API_AUDIT_REPORT.md](API_AUDIT_REPORT.md). The short fragments above are supplementary. The eight MIS action rows still require complete source review. Listed TypeScript names and test paths are planned, not implemented.
 
 ## Orders request/response and data-effect mapping
 
@@ -149,4 +149,30 @@ All ordinary order actions use `ordUser()` plus the HPCL admin router allowlist;
 | `superiors` | Selector → own hierarchy chains | Current account; read users/master and hierarchy mapping |
 | `approve` | Body `id,comment?,seen_updated_at?` → order | `ordScope`+`ordAwaitCond`, pending/stock; locked order/settings, decision/events/numbers |
 | `reject` | Body `id,comment,seen_updated_at?` → order | Same decision scope, reason required; locked order status/event |
+
+## API request/response and data-effect mapping
+
+Each row's proposed service and regression path is in the inventory above; exact frontend lines, status/error branches, SQL, race behavior and shared helpers are in [API_AUDIT_REPORT.md](API_AUDIT_REPORT.md). All destinations remain plans.
+
+| `api.php` action | Request → success | Actor/scope and SQLite effect |
+|---|---|---|
+| `sales` | selector → `data,count,orders,rev` | Session; scoped MIS sync/read, order item/file projection and pipeline summary |
+| `add` | date? plus 10 dashboard fields → `id` | Rohan editor; validated scoped MIS sheet INSERT, revision/audit |
+| `update` | id plus changed dashboard fields → `ok` | Rohan editor; old/new row scope, MIS update/version/revision/audit |
+| `delete` | id → `ok` | Rohan editor; scoped sheet DELETE or order row `gone=1`, revision/audit |
+| `import` | data[], mode?, month? → `ok,count,outside` | Rohan editor; scoped append/replace transaction, MIS rows/revision/audit |
+| `ro_lookup` | query code → `found` and outlet geography | No PHP session/scope guard; outlet or reference lookup |
+| `ref_lists` | selector → zones,state_ro | Session; bundled mapping read |
+| `add_pending` | 19 optional fields → `ok,id` | Any session; pending INSERT/audit, no PHP field/scope validation |
+| `list_pending` | selector → `data` | Non-HPCL superadmin; global pending SELECT |
+| `my_pending` | selector → `data` | Any session; exact creator username, all statuses |
+| `approve` | id,comment? → `ok` | Non-HPCL superadmin; pending→MIS INSERT plus status/revision/audit transaction |
+| `reject` | id,reason? → `ok` | Non-HPCL superadmin; conditional pending→rejected UPDATE and audit |
+| `edit_pending` | id plus 19 fields → `ok` | Exact creator; pending/rejected→pending, overwrite fields; no audit |
+| `delete_pending` | id → `ok` | Exact creator; pending/rejected DELETE; no audit |
+| `audit_log` | limit? → `ok,log` | Non-HPCL superadmin; audit table read |
+| `pending_count` | selector → `count` | Guest zero, any session global pending count |
+| `save_note` | id,note? → `ok` | Non-HPCL superadmin; MIS note overwrite/clear, revision/audit |
+| `get_targets` | month? → `ok,targets` | No PHP session/scope guard; target table read |
+| `save_target` | month,scope_type,scope_value,target_vol? → `ok` | Non-HPCL superadmin; unique-dimension target UPSERT/audit |
 

@@ -1,6 +1,6 @@
 # Source code audit — working inventory
 
-This inventory was checked against the supplied PHP dispatch switches and the early `public_invoice` branch at `orders.php:1062`. The original script missed that branch. `python scripts/source_inventory.py` reports **87 actions and 305 declared PHP functions** without overwriting these notes. The 23 `auth.php` actions and 63 reachable authentication helpers have source contracts in [AUTHENTICATION_AUDIT_REPORT.md](AUTHENTICATION_AUDIT_REPORT.md); three authentication helper call sites remain unknown. All 37 `orders.php` actions and 129 order helpers have source contracts in [ORDERS_AUDIT_REPORT.md](ORDERS_AUDIT_REPORT.md). The `api.php` and `mis.php` modules remain inventories, not behavioral audits. The PHP source remains authoritative.
+This inventory was checked against the supplied PHP dispatch switches and the early `public_invoice` branch at `orders.php:1062`. The original script missed that branch. `python scripts/source_inventory.py` reports **87 actions and 305 declared PHP functions** without overwriting these notes. The 23 `auth.php` actions and 63 reachable authentication helpers have source contracts in [AUTHENTICATION_AUDIT_REPORT.md](AUTHENTICATION_AUDIT_REPORT.md); three authentication helper call sites remain unknown. All 37 `orders.php` actions and 129 order helpers have source contracts in [ORDERS_AUDIT_REPORT.md](ORDERS_AUDIT_REPORT.md). All 19 `api.php` actions and 36 API helpers were examined in [API_AUDIT_REPORT.md](API_AUDIT_REPORT.md); 32 helpers are route-reachable and four are not route-reachable in the supplied router. The eight `mis.php` actions remain pending. The PHP source remains authoritative.
 
 ## Completeness gate (2026-11-22)
 
@@ -10,12 +10,13 @@ This inventory was checked against the supplied PHP dispatch switches and the ea
 | Syntactically routable by PHP dispatch URL/body | 87; runtime execution needs the absent `config.php` and a populated local database |
 | Confirmed dead actions | 0; frontend usage is not a reachability requirement for a public route |
 | Declared PHP helper functions | 305 |
-| Confirmed reachable helper functions | 192: 63 authentication and 129 orders helpers traced to supplied route call chains; other modules pending |
-| Helpers requiring TypeScript migration | 50 reachable authentication rule/security helpers and the order rule/security helpers need local equivalents; server/database/file adapters need local replacements; 3 auth helper reachability unknown; API/MIS pending |
-| Fully audited actions | 60 (23 `auth.php`, 37 `orders.php`); no Android implementation |
-| Pending actions | 27 (19 `api.php`, 8 `mis.php`) |
+| Confirmed reachable helper functions | 224: 63 authentication, 129 orders and 32 API helpers traced to supplied route call chains; MIS pending |
+| Helpers requiring TypeScript migration | 50 reachable authentication rule/security helpers and the order/API rule/security helpers need local equivalents; server/database/file adapters need local replacements; 3 auth helper reachability unknown; MIS pending |
+| Fully audited actions | 79 (23 `auth.php`, 37 `orders.php`, 19 `api.php`); no Android implementation |
+| Pending actions | 8 (`mis.php`) |
 | Fully audited authentication helpers | 63 of 66 declared in focus files; 3 have unknown reachability |
 | Fully audited orders helpers | 129 of 129 declared in `orders.php`; all traced to a route in supplied PHP |
+| API helpers examined | 36: 32 route-reachable AUDITED, 4 NOT_REQUIRED for current API routes |
 
 The 305 functions include 25 in `mis-xlsx.php`; this file contains a NUL byte, so ordinary `rg` treats it as binary and undercounts functions. The inventory script reads it as text. The frontend files `index.html`, `orders.js`, `mis.js`, `dash-reports.js`, `salesorder.js`, and `invoice.html` call the PHP endpoints; `invoice.html:32` calls `public_invoice`. API action names repeat across separate endpoints (`approve`, `delete`, `get`, `import`); these are distinct routes, not duplicate implementations. No action is proven dead merely because a static search missed a browser caller.
 
@@ -23,7 +24,9 @@ The 305 functions include 25 in `mis-xlsx.php`; this file contains a NUL byte, s
 
 `auth.php`, `orders.php`, `api.php`, and `mis-core.php` include `config.php`, which is absent; only `config.example.php` is supplied. `users-store.php` reads `users.php`, also absent; `03-demo-data/users.demo.php` is the supplied demo substitute. `mis-core.php:174` references absent `mis-data/seed.json`, while `mis-core.php:289` and `mis-xlsx.php` need absent `mis-data/template.xlsx`. The JSON demo MIS rows are supplied separately, but they do not recreate the workbook package. The original live configuration, live officer roster, and workbook cannot be audited from this kit.
 
-For **each of the remaining 27 API/MIS action rows below**, review its dispatch branch and helper bodies, then record request/response, validation, authorization, data/transaction effects and Android migration tests. The 110 API/MIS/other helper rows and three unknown-reachability authentication helpers still need disposition. Order contracts are in [ORDERS_AUDIT_REPORT.md](ORDERS_AUDIT_REPORT.md); the earlier selected order fragments at the end of this file are superseded by that report. No Phase 2 implementation is authorized by this source audit.
+The API audit also found no supplied DDL or data for `PENDING_TABLE` (demo config calls it `pending_entries`) or the configured `RO_REF_DB.RO_REF_TABLE` fallback reference sheet. The API's pending workflow and reference lookup are source-audited, but their live table constraints and production contents cannot be verified from this kit; see [API_AUDIT_REPORT.md](API_AUDIT_REPORT.md).
+
+For **each of the remaining eight MIS action rows below**, review its dispatch branch and helper bodies, then record request/response, validation, authorization, data/transaction effects and Android migration tests. The 74 MIS/other helper rows and three unknown-reachability authentication helpers still need disposition. Order and API contracts are in [ORDERS_AUDIT_REPORT.md](ORDERS_AUDIT_REPORT.md) and [API_AUDIT_REPORT.md](API_AUDIT_REPORT.md). The earlier selected fragments at the end of this file are superseded by those reports. No Phase 2 implementation is authorized by this source audit.
 
 ### Fully audited action contract
 
@@ -125,25 +128,25 @@ The 37 `orders.php` rows below are index entries. Their complete source ranges, 
 | `orders.php:1130` | `superiors` | `ordSuperiors` | AUDITED |
 | `orders.php:1131` | `approve` | `ordDecide` | AUDITED |
 | `orders.php:1132` | `reject` | `ordDecide` | AUDITED |
-| `api.php:60` | `sales` | `getSales` | NEEDS_CLARIFICATION |
-| `api.php:61` | `add` | `addEntry` | NEEDS_CLARIFICATION |
-| `api.php:62` | `update` | `updateEntry` | NEEDS_CLARIFICATION |
-| `api.php:63` | `delete` | `deleteEntry` | NEEDS_CLARIFICATION |
-| `api.php:64` | `import` | `importData` | NEEDS_CLARIFICATION |
-| `api.php:65` | `ro_lookup` | `roLookup` | NEEDS_CLARIFICATION |
-| `api.php:66` | `ref_lists` | `refLists` | NEEDS_CLARIFICATION |
-| `api.php:67` | `add_pending` | `addPending` | NEEDS_CLARIFICATION |
-| `api.php:68` | `list_pending` | `listPending` | NEEDS_CLARIFICATION |
-| `api.php:69` | `my_pending` | `myPending` | NEEDS_CLARIFICATION |
-| `api.php:70` | `approve` | `approvePending` | NEEDS_CLARIFICATION |
-| `api.php:71` | `reject` | `rejectPending` | NEEDS_CLARIFICATION |
-| `api.php:72` | `edit_pending` | `editPending` | NEEDS_CLARIFICATION |
-| `api.php:73` | `delete_pending` | `deletePending` | NEEDS_CLARIFICATION |
-| `api.php:74` | `audit_log` | `getAuditLog` | NEEDS_CLARIFICATION |
-| `api.php:75` | `pending_count` | `pendingCount` | NEEDS_CLARIFICATION |
-| `api.php:76` | `save_note` | `saveNote` | NEEDS_CLARIFICATION |
-| `api.php:77` | `get_targets` | `getTargets` | NEEDS_CLARIFICATION |
-| `api.php:78` | `save_target` | `saveTarget` | NEEDS_CLARIFICATION |
+| `api.php:60` | `sales` | `getSales` | AUDITED |
+| `api.php:61` | `add` | `addEntry` | AUDITED |
+| `api.php:62` | `update` | `updateEntry` | AUDITED |
+| `api.php:63` | `delete` | `deleteEntry` | AUDITED |
+| `api.php:64` | `import` | `importData` | AUDITED |
+| `api.php:65` | `ro_lookup` | `roLookup` | AUDITED |
+| `api.php:66` | `ref_lists` | `refLists` | AUDITED |
+| `api.php:67` | `add_pending` | `addPending` | AUDITED |
+| `api.php:68` | `list_pending` | `listPending` | AUDITED |
+| `api.php:69` | `my_pending` | `myPending` | AUDITED |
+| `api.php:70` | `approve` | `approvePending` | AUDITED |
+| `api.php:71` | `reject` | `rejectPending` | AUDITED |
+| `api.php:72` | `edit_pending` | `editPending` | AUDITED |
+| `api.php:73` | `delete_pending` | `deletePending` | AUDITED |
+| `api.php:74` | `audit_log` | `getAuditLog` | AUDITED |
+| `api.php:75` | `pending_count` | `pendingCount` | AUDITED |
+| `api.php:76` | `save_note` | `saveNote` | AUDITED |
+| `api.php:77` | `get_targets` | `getTargets` | AUDITED |
+| `api.php:78` | `save_target` | `saveTarget` | AUDITED |
 | `mis.php:32` | `get` | `see dispatch body` | NEEDS_CLARIFICATION |
 | `mis.php:34` | `ver` | `misOut` | NEEDS_CLARIFICATION |
 | `mis.php:35` | `download` | `misDownload` | NEEDS_CLARIFICATION |
@@ -350,42 +353,42 @@ The 37 `orders.php` rows below are index entries. Their complete source ranges, 
 | `orders.php:2956` | `ordRetList` | AUDITED |
 | `orders.php:2987` | `ordRetDecide` | AUDITED |
 | `orders.php:3013` | `ordDecide` | AUDITED |
-| `api.php:21` | `getDB` | NEEDS_CLARIFICATION |
-| `api.php:89` | `norm` | NEEDS_CLARIFICATION |
-| `api.php:98` | `resolveColumns` | NEEDS_CLARIFICATION |
-| `api.php:178` | `cleanStr` | NEEDS_CLARIFICATION |
-| `api.php:185` | `ensureAuditTable` | NEEDS_CLARIFICATION |
-| `api.php:195` | `logAudit` | NEEDS_CLARIFICATION |
-| `api.php:204` | `getAuditLog` | NEEDS_CLARIFICATION |
-| `api.php:214` | `pendingCount` | NEEDS_CLARIFICATION |
-| `api.php:223` | `saveNote` | NEEDS_CLARIFICATION |
-| `api.php:238` | `ensureTargetsTable` | NEEDS_CLARIFICATION |
-| `api.php:249` | `getTargets` | NEEDS_CLARIFICATION |
-| `api.php:261` | `saveTarget` | NEEDS_CLARIFICATION |
-| `api.php:283` | `getSales` | NEEDS_CLARIFICATION |
-| `api.php:350` | `sheetResolveDates` | NEEDS_CLARIFICATION |
-| `api.php:394` | `portalPaidSql` | NEEDS_CLARIFICATION |
-| `api.php:398` | `portalOrdersExist` | NEEDS_CLARIFICATION |
-| `api.php:404` | `portalOrderScope` | NEEDS_CLARIFICATION |
-| `api.php:413` | `portalOrderRows` | NEEDS_CLARIFICATION |
-| `api.php:446` | `portalOrderSummary` | NEEDS_CLARIFICATION |
-| `api.php:465` | `apiEditor` | NEEDS_CLARIFICATION |
-| `api.php:471` | `apiMisKeys` | NEEDS_CLARIFICATION |
-| `api.php:472` | `apiMisFields` | NEEDS_CLARIFICATION |
-| `api.php:478` | `addEntry` | NEEDS_CLARIFICATION |
-| `api.php:495` | `updateEntry` | NEEDS_CLARIFICATION |
-| `api.php:514` | `deleteEntry` | NEEDS_CLARIFICATION |
-| `api.php:529` | `importData` | NEEDS_CLARIFICATION |
-| `api.php:568` | `refLists` | NEEDS_CLARIFICATION |
-| `api.php:574` | `roLookup` | NEEDS_CLARIFICATION |
-| `api.php:670` | `requireSession` | NEEDS_CLARIFICATION |
-| `api.php:679` | `addPending` | NEEDS_CLARIFICATION |
-| `api.php:701` | `myPending` | NEEDS_CLARIFICATION |
-| `api.php:722` | `listPending` | NEEDS_CLARIFICATION |
-| `api.php:745` | `approvePending` | NEEDS_CLARIFICATION |
-| `api.php:794` | `rejectPending` | NEEDS_CLARIFICATION |
-| `api.php:814` | `editPending` | NEEDS_CLARIFICATION |
-| `api.php:845` | `deletePending` | NEEDS_CLARIFICATION |
+| `api.php:21` | `getDB` | AUDITED |
+| `api.php:89` | `norm` | NOT_REQUIRED |
+| `api.php:98` | `resolveColumns` | NOT_REQUIRED |
+| `api.php:178` | `cleanStr` | AUDITED |
+| `api.php:185` | `ensureAuditTable` | AUDITED |
+| `api.php:195` | `logAudit` | AUDITED |
+| `api.php:204` | `getAuditLog` | AUDITED |
+| `api.php:214` | `pendingCount` | AUDITED |
+| `api.php:223` | `saveNote` | AUDITED |
+| `api.php:238` | `ensureTargetsTable` | AUDITED |
+| `api.php:249` | `getTargets` | AUDITED |
+| `api.php:261` | `saveTarget` | AUDITED |
+| `api.php:283` | `getSales` | AUDITED |
+| `api.php:350` | `sheetResolveDates` | NOT_REQUIRED |
+| `api.php:394` | `portalPaidSql` | AUDITED |
+| `api.php:398` | `portalOrdersExist` | AUDITED |
+| `api.php:404` | `portalOrderScope` | AUDITED |
+| `api.php:413` | `portalOrderRows` | NOT_REQUIRED |
+| `api.php:446` | `portalOrderSummary` | AUDITED |
+| `api.php:465` | `apiEditor` | AUDITED |
+| `api.php:471` | `apiMisKeys` | AUDITED |
+| `api.php:472` | `apiMisFields` | AUDITED |
+| `api.php:478` | `addEntry` | AUDITED |
+| `api.php:495` | `updateEntry` | AUDITED |
+| `api.php:514` | `deleteEntry` | AUDITED |
+| `api.php:529` | `importData` | AUDITED |
+| `api.php:568` | `refLists` | AUDITED |
+| `api.php:574` | `roLookup` | AUDITED |
+| `api.php:670` | `requireSession` | AUDITED |
+| `api.php:679` | `addPending` | AUDITED |
+| `api.php:701` | `myPending` | AUDITED |
+| `api.php:722` | `listPending` | AUDITED |
+| `api.php:745` | `approvePending` | AUDITED |
+| `api.php:794` | `rejectPending` | AUDITED |
+| `api.php:814` | `editPending` | AUDITED |
+| `api.php:845` | `deletePending` | AUDITED |
 | `mis-core.php:28` | `misFail` | NEEDS_CLARIFICATION |
 | `mis-core.php:32` | `misOut` | NEEDS_CLARIFICATION |
 | `mis-core.php:36` | `misDB` | NEEDS_CLARIFICATION |

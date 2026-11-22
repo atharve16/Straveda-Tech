@@ -11,9 +11,27 @@
 | HPCL Level 4 officer | HPCL hierarchy designation in `ORD_HPCL_DESIG` | Exact effective account scope and privileges require full source review. |
 | Outlet | `portal_outlet_users`, `outlet=true`, one SAP number | Derived zone/region/sales area from outlet record on login/check; `ordScope` limits to its own SAP. `ordAwaitCond` explicitly returns false for an outlet account. |
 
-This is not a complete portal-wide permission matrix. The 18 page IDs in `auth.php` are visibility settings, not a substitute for server-side authorization. Authentication/account and `orders.php` actions are audited below; `api.php` pending/MIS access and `misScopeSql` still need action-by-action review. The absent live `users.php` prevents verifying live per-user page and approval-state grants. Every unlisted permission remains `NEEDS_CLARIFICATION`.
+This is not a complete portal-wide permission matrix. The 18 page IDs in `auth.php` are visibility settings, not a substitute for server-side authorization. Authentication/account, `orders.php` and `api.php` actions are audited below; eight `mis.php` actions remain pending. The absent live `users.php` prevents verifying live per-user page and approval-state grants. Every unlisted permission remains `NEEDS_CLARIFICATION`.
 
-The 37 `orders.php` action guards have now been reviewed in [ORDERS_AUDIT_REPORT.md](ORDERS_AUDIT_REPORT.md). The matrix below records the executable source gates. It still does not cover `api.php`/`mis.php`, and the absent live roster prevents confirming production grants.
+The 37 `orders.php` action guards have now been reviewed in [ORDERS_AUDIT_REPORT.md](ORDERS_AUDIT_REPORT.md). The matrix below records the executable source gates; the absent live roster prevents confirming production grants.
+The API action matrix below supplements the order matrix; the MIS routes remain pending.
+
+## API data-entry and pending eligibility (source audited)
+
+`api.php` uses `misUser.edit` for direct MIS edits (Rohan non-HPCL Super Admin or Rohan `role=zone`), while pending routes use the cached PHP session role/organization. For MIS rows, `misScope` applies admin state limits, officer zone/region/sales area and outlet SAP; direct writes check both old and proposed row scope. Pending approval is **global** for a `role=superadmin` with `org!=hpcl`, even if that account has restricted approval states. Page visibility does not enter these guards. Full branches are in [API_AUDIT_REPORT.md](API_AUDIT_REPORT.md).
+
+| API action(s) | Executable actor and scope rule |
+|---|---|
+| `sales` | Any signed-in username; current MIS scope; `hidden_cols` removed from row output |
+| `add,update,delete,import` | Rohan Super Admin or Rohan `role=zone`; row geography must remain in current MIS scope; no creator test |
+| `ro_lookup` | Public in PHP; exact SAP search across all zones, then configured reference DB |
+| `ref_lists` | Any signed-in session; full geographic constants |
+| `add_pending` | Any signed-in session, including HPCL and outlet; no geography/role validation |
+| `my_pending,edit_pending,delete_pending` | Any signed-in session; own exact `submitted_by` for read/edit/delete; approved edit/delete denied |
+| `list_pending,approve,reject` | Non-HPCL `role=superadmin`; all pending rows regardless of creator/state; self approval allowed |
+| `audit_log,save_note,save_target` | Non-HPCL `role=superadmin`; no current state restriction on note/target IDs or dimensions |
+| `pending_count` | Guest gets zero; every signed-in session sees global pending count |
+| `get_targets` | Public in PHP; all targets or exact month |
 
 ## Orders action eligibility (source audited)
 
