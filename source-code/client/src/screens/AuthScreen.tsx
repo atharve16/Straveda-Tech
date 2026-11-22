@@ -3,12 +3,12 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, radius, shadows, spacing, typography } from '../theme/tokens';
 import { FormField } from '../components/common/Inputs';
 import { PrimaryButton } from '../components/common/Buttons';
@@ -45,6 +45,7 @@ export function AuthScreen({
   error,
   onErrorDismiss,
 }: AuthScreenProps) {
+  const insets = useSafeAreaInsets();
   const [org, setOrg] = useState<OrgTab>('rohan');
   const [username, setUsername] = useState('demo_super');
   const [password, setPassword] = useState('Demo@12345');
@@ -69,7 +70,7 @@ export function AuthScreen({
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={[styles.safeArea, { paddingTop: Math.max(insets.top, 0) }]}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.keyboardView}
@@ -213,7 +214,7 @@ export function AuthScreen({
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
 

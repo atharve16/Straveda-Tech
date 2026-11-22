@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Modal,
   Pressable,
@@ -17,6 +17,8 @@ import { OrderCard } from '../components/domain/OrderCard';
 import type { Actor, Order, Pending } from '../domain';
 import { canDecideOrder, canDecidePending } from '../domain';
 
+export type ApprovalTab = 'pending_mis' | 'pending_orders' | 'submit_entry';
+
 interface ApprovalsScreenProps {
   actor: Actor;
   pendingList: Pending[];
@@ -31,9 +33,9 @@ interface ApprovalsScreenProps {
   ) => Promise<void>;
   onApproveOrder: (id: number) => Promise<void>;
   onRejectOrder: (id: number, reason: string) => Promise<void>;
+  initialTab?: ApprovalTab;
+  onTabChange?: (tab: ApprovalTab) => void;
 }
-
-type ApprovalTab = 'pending_mis' | 'pending_orders' | 'submit_entry';
 
 export function ApprovalsScreen({
   actor,
@@ -44,8 +46,21 @@ export function ApprovalsScreen({
   onSubmitPendingEntry,
   onApproveOrder,
   onRejectOrder,
+  initialTab = 'pending_mis',
+  onTabChange,
 }: ApprovalsScreenProps) {
-  const [activeTab, setActiveTab] = useState<ApprovalTab>('pending_mis');
+  const [activeTab, setActiveTab] = useState<ApprovalTab>(initialTab);
+
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
+
+  function changeTab(tab: ApprovalTab) {
+    setActiveTab(tab);
+    onTabChange?.(tab);
+  }
 
   // Submit Pending Form State
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
@@ -75,7 +90,7 @@ export function ApprovalsScreen({
       await onSubmitPendingEntry(date, sap, item, ea);
       setSap('');
       setEa('10');
-      setActiveTab('pending_mis');
+      changeTab('pending_mis');
     } catch (e) {
       setSubmitError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -104,7 +119,7 @@ export function ApprovalsScreen({
       {/* Segmented Top Bar */}
       <View style={styles.tabBar}>
         <Pressable
-          onPress={() => setActiveTab('pending_mis')}
+          onPress={() => changeTab('pending_mis')}
           style={[styles.tabItem, activeTab === 'pending_mis' && styles.tabItemActive]}
         >
           <Text style={[styles.tabText, activeTab === 'pending_mis' && styles.tabTextActive]}>
@@ -113,7 +128,7 @@ export function ApprovalsScreen({
         </Pressable>
 
         <Pressable
-          onPress={() => setActiveTab('pending_orders')}
+          onPress={() => changeTab('pending_orders')}
           style={[styles.tabItem, activeTab === 'pending_orders' && styles.tabItemActive]}
         >
           <Text style={[styles.tabText, activeTab === 'pending_orders' && styles.tabTextActive]}>
@@ -122,7 +137,7 @@ export function ApprovalsScreen({
         </Pressable>
 
         <Pressable
-          onPress={() => setActiveTab('submit_entry')}
+          onPress={() => changeTab('submit_entry')}
           style={[styles.tabItem, activeTab === 'submit_entry' && styles.tabItemActive]}
         >
           <Text style={[styles.tabText, activeTab === 'submit_entry' && styles.tabTextActive]}>

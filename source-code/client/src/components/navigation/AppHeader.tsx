@@ -1,5 +1,6 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, radius, shadows, spacing, typography } from '../../theme/tokens';
 import type { Actor } from '../../domain';
 
@@ -18,11 +19,12 @@ export function AppHeader({
   onBack,
   screenTitle,
 }: AppHeaderProps) {
+  const insets = useSafeAreaInsets();
   const isOutlet = actor.org === 'outlet';
   const orgColor = isOutlet ? colors.outletBadge : actor.org === 'hpcl' ? colors.hpclBadge : colors.rohanBadge;
 
   return (
-    <View style={[styles.header, shadows.subtle]}>
+    <View style={[styles.header, { paddingTop: Math.max(insets.top, 0) + 2 }, shadows.subtle]}>
       <View style={styles.brandingRow}>
         <View style={styles.brandGroup}>
           {onBack ? (

@@ -1,7 +1,8 @@
 import { SQLiteProvider, type SQLiteDatabase } from 'expo-sqlite';
 import { Stack, type ErrorBoundaryProps } from 'expo-router';
 import { Suspense } from 'react';
-import { ActivityIndicator, Button, Text, View } from 'react-native';
+import { ActivityIndicator, Button, StatusBar, Text, View } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { initializeSession } from '../src/session';
 import { initializeOrderWorkflow } from '../src/order-workflows';
 import { recoverOrderFiles } from '../src/order-files';
@@ -44,15 +45,18 @@ async function initialize(db: SQLiteDatabase) {
 
 export default function RootLayout() {
   return (
-    <Suspense fallback={<View style={{ flex: 1, justifyContent: 'center' }}><ActivityIndicator /></View>}>
-    <SQLiteProvider
-      databaseName="rohan_energy.db"
-      assetSource={{ assetId: require('../assets/database/rohan_energy_demo.db') }}
-      onInit={initialize}
-      useSuspense
-    >
-      <Stack screenOptions={{ headerShown: false }} />
-    </SQLiteProvider>
-    </Suspense>
+    <SafeAreaProvider style={{ flex: 1 }}>
+      <StatusBar barStyle="dark-content" />
+      <Suspense fallback={<View style={{ flex: 1, justifyContent: 'center' }}><ActivityIndicator /></View>}>
+        <SQLiteProvider
+          databaseName="rohan_energy.db"
+          assetSource={{ assetId: require('../assets/database/rohan_energy_demo.db') }}
+          onInit={initialize}
+          useSuspense
+        >
+          <Stack screenOptions={{ headerShown: false }} />
+        </SQLiteProvider>
+      </Suspense>
+    </SafeAreaProvider>
   );
 }

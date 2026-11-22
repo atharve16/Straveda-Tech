@@ -18,6 +18,8 @@ import type { Actor, Order } from '../domain';
 import type { DraftLine, OrderDetail, OrderFile, OrderReturn } from '../order-workflows';
 import type { OrderFileKind } from '../order-file-validation';
 
+export type OrderViewTab = 'all_orders' | 'my_orders' | 'create' | 'returns' | 'pod';
+
 interface OrdersScreenProps {
   actor: Actor;
   orders: Order[];
@@ -35,11 +37,11 @@ interface OrdersScreenProps {
   onSubmitOrder: (id: number) => Promise<void>;
   onApproveOrder: (id: number) => Promise<void>;
   onRejectOrder: (id: number, reason: string) => Promise<void>;
-  initialTab?: 'list' | 'create' | 'returns' | 'pod';
+  initialTab?: 'list' | 'create' | 'returns' | 'pod' | OrderViewTab;
+  onTabChange?: (tab: OrderViewTab) => void;
   onBack?: () => void;
 }
 
-type OrderViewTab = 'all_orders' | 'my_orders' | 'create' | 'returns' | 'pod';
 type FilterStatus = 'ALL' | 'DRAFT' | 'PENDING' | 'APPROVED' | 'TRANSIT';
 
 export function OrdersScreen({
@@ -60,6 +62,7 @@ export function OrdersScreen({
   onApproveOrder,
   onRejectOrder,
   initialTab = 'list',
+  onTabChange,
   onBack,
 }: OrdersScreenProps) {
   const [viewTab, setViewTab] = useState<OrderViewTab>(
@@ -69,11 +72,28 @@ export function OrdersScreen({
       ? 'returns'
       : initialTab === 'pod'
       ? 'pod'
+      : initialTab === 'my_orders'
+      ? 'my_orders'
       : 'all_orders'
   );
   useEffect(() => {
-    setViewTab(initialTab === 'create' ? 'create' : initialTab === 'returns' ? 'returns' : initialTab === 'pod' ? 'pod' : 'all_orders');
+    setViewTab(
+      initialTab === 'create'
+        ? 'create'
+        : initialTab === 'returns'
+        ? 'returns'
+        : initialTab === 'pod'
+        ? 'pod'
+        : initialTab === 'my_orders'
+        ? 'my_orders'
+        : 'all_orders'
+    );
   }, [initialTab]);
+
+  function changeTab(tab: OrderViewTab) {
+    setViewTab(tab);
+    onTabChange?.(tab);
+  }
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<FilterStatus>('ALL');
 
@@ -160,7 +180,7 @@ export function OrdersScreen({
       setSelectedSap(order.sap);
       setDraftLines(detail.lines.map(line => ({ item: line.item, paid: line.paid })));
       setHasAddedLine(true);
-      setViewTab('create');
+      changeTab('create');
       setCreateError('');
     } catch (error) { setDetailError(error instanceof Error ? error.message : String(error)); }
   }
@@ -178,7 +198,7 @@ export function OrdersScreen({
       setDraftLines([]);
       setHasAddedLine(false);
       setEditingId(undefined);
-      setViewTab('all_orders');
+      changeTab('all_orders');
     } catch (e) {
       setCreateError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -212,7 +232,7 @@ export function OrdersScreen({
       {/* Segment Bar */}
       <View style={styles.segmentBar}>
         <Pressable
-          onPress={() => setViewTab('all_orders')}
+          onPress={() => changeTab('all_orders')}
           style={[styles.segmentItem, viewTab === 'all_orders' && styles.segmentItemActive]}
         >
           <Text style={[styles.segmentText, viewTab === 'all_orders' && styles.segmentTextActive]}>
@@ -221,7 +241,7 @@ export function OrdersScreen({
         </Pressable>
 
         <Pressable
-          onPress={() => setViewTab('my_orders')}
+          onPress={() => changeTab('my_orders')}
           style={[styles.segmentItem, viewTab === 'my_orders' && styles.segmentItemActive]}
         >
           <Text style={[styles.segmentText, viewTab === 'my_orders' && styles.segmentTextActive]}>
@@ -230,7 +250,7 @@ export function OrdersScreen({
         </Pressable>
 
         <Pressable
-          onPress={() => setViewTab('create')}
+          onPress={() => changeTab('create')}
           style={[styles.segmentItem, viewTab === 'create' && styles.segmentItemActive]}
         >
           <Text style={[styles.segmentText, viewTab === 'create' && styles.segmentTextActive]}>
@@ -239,7 +259,7 @@ export function OrdersScreen({
         </Pressable>
 
         <Pressable
-          onPress={() => setViewTab('pod')}
+          onPress={() => changeTab('pod')}
           style={[styles.segmentItem, viewTab === 'pod' && styles.segmentItemActive]}
         >
           <Text style={[styles.segmentText, viewTab === 'pod' && styles.segmentTextActive]}>
@@ -248,7 +268,7 @@ export function OrdersScreen({
         </Pressable>
 
         <Pressable
-          onPress={() => setViewTab('returns')}
+          onPress={() => changeTab('returns')}
           style={[styles.segmentItem, viewTab === 'returns' && styles.segmentItemActive]}
         >
           <Text style={[styles.segmentText, viewTab === 'returns' && styles.segmentTextActive]}>

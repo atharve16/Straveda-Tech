@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors, radius, shadows, spacing, typography } from '../theme/tokens';
 import { ScreenContainer } from '../components/common/ScreenContainer';
@@ -23,6 +23,10 @@ type InvTab = 'products' | 'pricing' | 'foc' | 'sap';
 
 export function InventoryScreen({ actor, snapshot, loading, error, onSetStock, onSetStockEnabled, initialTab = 'products', onBack }: InventoryScreenProps) {
   const [activeTab, setActiveTab] = useState<InvTab>(initialTab);
+
+  useEffect(() => {
+    setActiveTab(initialTab);
+  }, [initialTab]);
   const products = snapshot?.products ?? [];
   const [editingStock, setEditingStock] = useState<InventoryProduct | null>(null);
   const [stockInput, setStockInput] = useState('');

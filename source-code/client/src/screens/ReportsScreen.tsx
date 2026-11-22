@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors, radius, shadows, spacing, typography } from '../theme/tokens';
 import { ScreenContainer } from '../components/common/ScreenContainer';
@@ -11,6 +11,8 @@ interface ReportsScreenProps {
   misRows: MisRow[];
   orders: Order[];
   onExportCsv: () => Promise<void>;
+  initialTab?: ReportType;
+  onBack?: () => void;
 }
 
 type ReportType = 'summary' | 'volume' | 'ro' | 'orders';
@@ -20,8 +22,14 @@ export function ReportsScreen({
   misRows,
   orders,
   onExportCsv,
+  initialTab = 'summary',
+  onBack,
 }: ReportsScreenProps) {
-  const [reportType, setReportType] = useState<ReportType>('summary');
+  const [reportType, setReportType] = useState<ReportType>(initialTab);
+
+  useEffect(() => {
+    setReportType(initialTab);
+  }, [initialTab]);
 
   // Compute metrics from actual domain data
   const totalLitres = misRows.reduce((sum, r) => sum + Number(r.litres || 0), 0);
@@ -51,6 +59,12 @@ export function ReportsScreen({
 
   return (
     <ScreenContainer>
+      {onBack ? (
+        <View style={styles.backRow}>
+          <SecondaryButton title="‹ Back to Modules" onPress={onBack} size="sm" />
+        </View>
+      ) : null}
+
       {/* Report Segment Tabs */}
       <View style={styles.segmentBar}>
         <Pressable
@@ -452,5 +466,8 @@ const styles = StyleSheet.create({
   orderStatCount: {
     ...typography.bodyBold,
     fontSize: 15,
+  },
+  backRow: {
+    marginBottom: spacing.xs,
   },
 });

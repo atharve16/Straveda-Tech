@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, SafeAreaView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Alert, BackHandler, StyleSheet, View } from 'react-native';
 import { useSQLiteContext } from 'expo-sqlite';
 import * as DocumentPicker from 'expo-document-picker';
 import { File, Paths } from 'expo-file-system';
@@ -37,6 +37,7 @@ import { listInventory, type InventorySnapshot } from '../src/inventory';
 import { setProductStock, setStockEnabled } from '../src/stock';
 import { changeOwnPassword } from '../src/profile';
 import { colors } from '../src/theme/tokens';
+import { handleBackNavigation, recordTabHistory } from '../src/navigation';
 
 // UI Components & Navigation
 import { AppHeader } from '../src/components/navigation/AppHeader';
@@ -48,9 +49,9 @@ import { DocumentViewerModal } from '../src/components/domain/DocumentViewerModa
 // Screens
 import { AuthScreen } from '../src/screens/AuthScreen';
 import { DashboardScreen } from '../src/screens/DashboardScreen';
-import { OrdersScreen } from '../src/screens/OrdersScreen';
-import { MisScreen } from '../src/screens/MisScreen';
-import { ApprovalsScreen } from '../src/screens/ApprovalsScreen';
+import { OrdersScreen, type OrderViewTab } from '../src/screens/OrdersScreen';
+import { MisScreen, type MisTab } from '../src/screens/MisScreen';
+import { ApprovalsScreen, type ApprovalTab } from '../src/screens/ApprovalsScreen';
 import { ReportsScreen } from '../src/screens/ReportsScreen';
 import { InventoryScreen } from '../src/screens/InventoryScreen';
 import { AdminScreen } from '../src/screens/AdminScreen';
@@ -70,9 +71,13 @@ export default function App() {
 
   // Navigation State
   const [currentTab, setCurrentTab] = useState<MainTab>('Home');
+  const [tabHistory, setTabHistory] = useState<MainTab[]>(['Home']);
   const [activeSubSection, setActiveSubSection] = useState<SubSectionId | null>(null);
   const [showMoreModal, setShowMoreModal] = useState(false);
-  const [orderInitialTab, setOrderInitialTab] = useState<'list' | 'create'>('list');
+  const [orderInitialTab, setOrderInitialTab] = useState<'list' | 'create' | OrderViewTab>('list');
+  const [orderCurrentTab, setOrderCurrentTab] = useState<OrderViewTab>('all_orders');
+  const [misCurrentTab, setMisCurrentTab] = useState<MisTab>('mis');
+  const [approvalsCurrentTab, setApprovalsCurrentTab] = useState<ApprovalTab>('pending_mis');
 
   // Operation / Loading / Error State
   const [busy, setBusy] = useState(false);
@@ -99,6 +104,58 @@ export default function App() {
 
   // Search State for MIS
   const [misSearch, setMisSearch] = useState('');
+
+  const navStateRef = useRef({
+    isLoggedIn: !!actor,
+    showMoreModal,
+    activeSubSection,
+    currentTab,
+    tabHistory,
+    orderViewTab: orderCurrentTab,
+    misActiveTab: misCurrentTab,
+    approvalsActiveTab: approvalsCurrentTab,
+  });
+
+  useEffect(() => {
+    navStateRef.current = {
+      isLoggedIn: !!actor,
+      showMoreModal,
+      activeSubSection,
+      currentTab,
+      tabHistory,
+      orderViewTab: orderCurrentTab,
+      misActiveTab: misCurrentTab,
+      approvalsActiveTab: approvalsCurrentTab,
+    };
+  }, [actor, showMoreModal, activeSubSection, currentTab, tabHistory, orderCurrentTab, misCurrentTab, approvalsCurrentTab]);
+
+  useEffect(() => {
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      return handleBackNavigation(navStateRef.current, {
+        closeModal: () => setShowMoreModal(false),
+        closeSubSection: () => setActiveSubSection(null),
+        resetOrderTab: () => {
+          setOrderInitialTab('all_orders');
+          setOrderCurrentTab('all_orders');
+        },
+        resetMisTab: () => {
+          setMisCurrentTab('mis');
+        },
+        resetApprovalsTab: () => {
+          setApprovalsCurrentTab('pending_mis');
+        },
+        popTab: (previousTab) => {
+          setTabHistory(prev => {
+            const next = prev.slice(0, -1);
+            return next.length > 0 ? next : ['Home'];
+          });
+          setCurrentTab(previousTab);
+          setActiveSubSection(null);
+        },
+      });
+    });
+    return () => subscription.remove();
+  }, []);
 
   useEffect(() => {
     let live = true;
@@ -216,6 +273,7 @@ export default function App() {
       const a = await loginAndSaveSession(db, user, pass, orgName);
       setActor(a);
       setCurrentTab('Home');
+      setTabHistory(['Home']);
       setActiveSubSection(null);
     });
   }
@@ -225,6 +283,7 @@ export default function App() {
       await clearSession(db);
       setActor(null);
       setCurrentTab('Home');
+      setTabHistory(['Home']);
       setActiveSubSection(null);
       setMisSearch('');
       setError('');
@@ -296,9 +355,11 @@ export default function App() {
       setShowMoreModal(true);
     } else {
       setCurrentTab(tab);
+      setTabHistory(prev => recordTabHistory(prev, tab));
       setActiveSubSection(null);
       if (tab === 'Orders') {
         setOrderInitialTab('list');
+        setOrderCurrentTab('all_orders');
       }
     }
   }
@@ -422,7 +483,7 @@ export default function App() {
 
   // RENDER: MAIN APPLICATION WORKSPACE
   return (
-    <SafeAreaView style={styles.appContainer}>
+    <View style={styles.appContainer}>
       {/* Top Header */}
       <AppHeader
         actor={actor}
@@ -519,6 +580,8 @@ export default function App() {
             misRows={mis}
             orders={orders}
             onExportCsv={shareCsv}
+            initialTab="summary"
+            onBack={() => setActiveSubSection(null)}
           />
         ) : activeSubSection === 'roreport' ? (
           <ReportsScreen
@@ -526,6 +589,8 @@ export default function App() {
             misRows={mis}
             orders={orders}
             onExportCsv={shareCsv}
+            initialTab="ro"
+            onBack={() => setActiveSubSection(null)}
           />
         ) : activeSubSection === 'inventory' ? (
           <InventoryScreen key="inventory" {...inventoryWorkflow} />
@@ -563,15 +628,20 @@ export default function App() {
             history={history}
             onNavigateTab={tab => {
               setCurrentTab(tab);
+              setTabHistory(prev => recordTabHistory(prev, tab));
               setActiveSubSection(null);
             }}
             onNewOrder={() => {
               setCurrentTab('Orders');
+              setTabHistory(prev => recordTabHistory(prev, 'Orders'));
               setOrderInitialTab('create');
+              setOrderCurrentTab('create');
               setActiveSubSection(null);
             }}
             onAddMis={() => {
               setCurrentTab('MIS');
+              setTabHistory(prev => recordTabHistory(prev, 'MIS'));
+              setMisCurrentTab('entry');
               setActiveSubSection(null);
             }}
             onExportMis={shareCsv}
@@ -586,6 +656,7 @@ export default function App() {
             products={products}
             outlets={outlets}
             initialTab={orderInitialTab}
+            onTabChange={setOrderCurrentTab}
             {...orderWorkflow}
             onSubmitOrder={id => run(() => submitOrder(db, actor, id))}
             onApproveOrder={id => run(() => decideOrder(db, actor, id, true))}
@@ -602,12 +673,16 @@ export default function App() {
             onAddRow={(d, s, i, e) => run(() => addMis(db, actor, d, s, i, e))}
             onUpdateRow={(row, d, e) => run(() => updateMis(db, actor, row, d, e))}
             onDeleteRow={row => run(() => deleteMis(db, actor, row))}
+            initialTab={misCurrentTab}
+            onTabChange={setMisCurrentTab}
           />
         ) : currentTab === 'Approvals' ? (
           <ApprovalsScreen
             actor={actor}
             pendingList={pending}
             orders={orders}
+            initialTab={approvalsCurrentTab}
+            onTabChange={setApprovalsCurrentTab}
             onApprovePending={id => run(() => decidePending(db, actor, id, true))}
             onRejectPending={(id, reason) => run(() => decidePending(db, actor, id, false, reason))}
             onSubmitPendingEntry={(d, s, i, e) => run(() => submitPending(db, actor, d, s, i, e))}
@@ -630,7 +705,7 @@ export default function App() {
         onClose={() => setShowMoreModal(false)}
         onSelectSection={handleSelectSubSection}
       />
-    </SafeAreaView>
+    </View>
   );
 }
 

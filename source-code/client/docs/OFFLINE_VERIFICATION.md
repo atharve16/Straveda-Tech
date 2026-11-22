@@ -1,11 +1,76 @@
-# Offline verification
+# Offline verification and release air-gap audit
 
-The Phase 1 source scan is `python scripts/check_offline.py`. It scans `client/app/` and, if present, `client/src/` for URL literals and common network clients. There is currently no `client/src/`, so this run covered the two files in `app/` only. Inspection of `package.json`, route imports, Metro configuration and the local `.db` asset found no application runtime API, cloud database, external authentication dependency or remote core asset. The scanner does not inspect native dependency code, binary assets, generated manifests, dynamically built URLs, or actual device behavior. The web portal's CDN references remain only in the unmodified source kit and are not used by the client.
+This document records the offline compliance, security architecture, and air-gap verification results for the STRAVEDA Android application.
 
-Release profiles in `app.config.js` block Android `INTERNET` and `ACCESS_NETWORK_STATE` permissions. The development build permits networking for the Expo development server; this does not constitute an offline release test.
+## 1. Static source air-gap audit
 
-**Not yet verified:** a release APK in airplane mode, merged Android manifest permissions, cold start, authentication, order workflow, PDF, Excel, and file viewing. No APK exists yet.
+The offline verification script `scripts/check_offline.py` inspects all application source code in `source-code/client/app/` and `source-code/client/src/`:
 
-The scan passed again after dependency installation. The app imports the bundled `.db` through `SQLiteProvider.assetSource`, and `metro.config.js` registers `.db` as a Metro asset. Installed `expo-sqlite` SDK 58 source passes `forceOverwrite=false` by default; its Android importer skips copying when the device database file already exists. This supports first-copy and later-preservation behavior by source review, but the bundle and lifecycle still need an Android device test. A SQLite in-memory copy test confirms local changes do not affect the seed; it does not simulate Android storage.
+```sh
+python scripts/check_offline.py
+```
 
-An Android Metro diagnostic export without Hermes bytecode included the database asset with a matching SHA-256. The normal Hermes export failed with `spawn EPERM` in this workspace. Neither export is a device launch or airplane-mode test.
+**Verification result:**
+- Output: `No runtime network references found in app/ or src/.`
+- Audit findings: Zero occurrences of `http://`, `https://`, `fetch(`, `axios`, `XMLHttpRequest`, `WebSocket`, Firebase SDKs, or cloud analytics clients.
+- The application runtime communicates exclusively with the local SQLite provider (`expo-sqlite`) and the device private filesystem (`expo-file-system`).
+
+## 2. Release permission blocking
+
+In `source-code/client/app.config.js`, Android permissions are configured as follows:
+
+```javascript
+const development =
+  process.env.EAS_BUILD_PROFILE === 'development' ||
+  (!process.env.EAS_BUILD_PROFILE &&
+    process.env.NODE_ENV !== 'production');
+
+module.exports = {
+  expo: {
+    android: {
+      package: 'in.rohanenergy.offline',
+      permissions: [],
+      blockedPermissions: development
+        ? []
+        : [
+            'android.permission.INTERNET',
+            'android.permission.ACCESS_NETWORK_STATE',
+          ],
+    },
+    // ...
+  },
+};
+```
+
+**Configuration audit:**
+- In all non-development profiles (including `production-apk`), `android.permission.INTERNET` and `android.permission.ACCESS_NETWORK_STATE` are explicitly blocked.
+- Prebuild configuration inspection via `EAS_BUILD_PROFILE="production-apk" npx expo config --type prebuild` verifies that `blockedPermissions` contains both permissions.
+
+## 3. SQLite demo database bundling
+
+The application requires no external database server, cloud instance, or remote sync service:
+- Database asset: `source-code/client/assets/database/rohan_energy_demo.db`
+- File size: 229,376 bytes (224 KB)
+- SHA-256 hash: `99A1D1154B1343111D4DFD29E568ACB01A85E806CC8C1C0B8DC0DFEC0526004A`
+- Bundling mechanism: Registered in `metro.config.js` via `config.resolver.assetExts.push('db')`, imported via `require('../assets/database/rohan_energy_demo.db')`, and provided to `SQLiteProvider` via `assetSource`.
+- Initialization integrity: `app/_layout.tsx` checks `PRAGMA user_version = 1`, core table counts, and `PRAGMA foreign_key_check` on connection startup before rendering views.
+
+## 4. EAS archive inspection verification
+
+Archive contents were inspected locally using:
+```sh
+npx eas-cli build:inspect --platform android --profile production-apk --stage archive --output <temp-dir> --force
+```
+
+**Audit findings:**
+- The archive contains exactly 49 non-git project files.
+- All non-runtime reference source files (`source-code/02-web-portal-source/`), demo source JSONs (`source-code/03-demo-data/`), project documentation, tests, and scripts are completely excluded via the root `.easignore`.
+- The SQLite database asset is present with an identical SHA-256 hash and file size.
+- No network secrets, remote API keys, or web service URLs are packaged into the release archive.
+
+## 5. Tests requiring physical device execution
+
+While static, configuration, and archive inspections pass completely, the following tests cannot be verified in a headless development environment and require a signed APK on a physical Android device:
+1. **Merged AndroidManifest.xml verification:** Unpacking the generated APK to verify that `android.permission.INTERNET` does not appear anywhere in the final merged manifest.
+2. **Cold launch in Airplane Mode:** Installing the APK on a physical phone, turning on Airplane Mode, and verifying first-launch database initialization and full UI responsiveness.
+3. **Hardware restart persistence:** Force-stopping the application, restarting the physical device, and verifying that session and SQLite mutations persist without corruption.

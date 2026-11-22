@@ -2,7 +2,6 @@ import React from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   View,
@@ -23,7 +22,7 @@ export function ScreenContainer({
   style,
 }: ScreenContainerProps) {
   return (
-    <SafeAreaView style={[styles.safeArea, style]}>
+    <View style={[styles.safeArea, style]}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.container}
@@ -43,7 +42,7 @@ export function ScreenContainer({
           </View>
         )}
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
 

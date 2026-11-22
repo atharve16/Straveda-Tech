@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors, radius, shadows, spacing, typography } from '../theme/tokens';
 import { ScreenContainer } from '../components/common/ScreenContainer';
@@ -81,6 +81,10 @@ export function AdminScreen({
   onBack,
 }: AdminScreenProps) {
   const [activeTab, setActiveTab] = useState<AdminTab>(initialTab);
+
+  useEffect(() => {
+    setActiveTab(initialTab);
+  }, [initialTab]);
 
   return (
     <ScreenContainer>

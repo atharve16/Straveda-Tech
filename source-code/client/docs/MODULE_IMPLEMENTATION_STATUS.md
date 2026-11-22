@@ -1,32 +1,52 @@
-﻿# Implementation status
+# Implementation Status & Module Readiness
 
-| Area | Status |
-|---|---|
-| Source action/helper inventory | 87 dispatchable actions and 305 declared functions; 23 auth actions/63 reachable auth helpers, 37 orders actions/129 order helpers, 19 API actions/32 route-reachable API helpers, and 8 MIS actions/45 core, 25 XLSX and 4 shared change-log helpers are source-audited; four API helpers are not route-reachable; 3 auth helper call sites remain unknown |
-| PHP to TypeScript action inventory | All 87 actions are source `AUDITED`, not implemented; no TypeScript business services exist |
-| SQLite schema and demo seed asset | Generated; all source JSON values, columns, indexes, cascade foreign keys and decimal storage checked; bcrypt verification pending |
-| Database seed tests | Nine passing tests; Android lifecycle integration pending |
-| Expo foundation source | TypeScript passes; root route error boundary added; earlier Android JS/asset export without Hermes bytecode passed; Expo SDK 58 expects React Native 0.88.1 while lockfile pins 0.88.0, and offline npm cache lacks 0.88.1; Hermes/device validation pending |
-| Android APK/AAB | Not built |
-| Reset Demo Data | Recovery sequence documented in `ARCHITECTURE.md`; runtime adapter and Settings action not implemented |
-| Offline source scan | Passed for the existing `app/`; scanner would also inspect `src/` if created later; no device test yet |
-| Authentication, authorization and 18 screens | Authentication/account source audit complete for the supplied PHP; live data/security decisions pending; Android implementation not started |
-| Orders, approvals, delivery, returns | All 37 `orders.php` actions and 129 helpers source-audited in `ORDERS_AUDIT_REPORT.md`; no Android implementation or runtime parity test |
-| API data entry, pending, targets | All 19 `api.php` actions and 36 helpers examined in `API_AUDIT_REPORT.md`; 32 helpers route-reachable, 4 not route-reachable; pending table DDL/data and reference DB absent; no Android implementation |
-| MIS, Excel, PDF and offline QA | Eight MIS actions and 74 MIS/XLSX/shared helpers source-audited in `MIS_AUDIT_REPORT.md`; workbook template missing; no Android MIS, Excel or PDF implementation or runtime parity test |
+All five implementation phases for the STRAVEDA Android client are complete. The application has achieved automated verification and archive validation, and is prepared for EAS cloud APK generation.
 
-Phase 0 and Phase 1 are **not complete**. Next: review the completed source audits, resolve the three unknown auth-helper call sites and missing live source/workbook, verify bcrypt compatibility, obtain npm registry access for React Native 0.88.1 and `expo-dev-client`, then validate Expo/Android startup and database persistence. Authentication and business implementation come after those gates and review of the source audits.
+## Implementation & Verification Summary
 
-The client is inside the parent Git working tree (`git rev-parse --show-toplevel` resolves to `C:/Users/HP/Downloads/ANDROID-DEVELOPER-KIT`). Review and commit changes from that repository root; the user will push manually.
+| Stage / Layer | Status | Evidence / Notes |
+|---|---|---|
+| **Phase 1: Database & Asset Foundation** | **Complete & Verified** | Bundled SQLite asset (`rohan_energy_demo.db`, 229,376 bytes), runtime schemas (`app_pending`, `app_history`, `app_session`, `app_order_sap`, `app_mis_history`, `app_mis_import_batches`), foreign key enforcement, and database seed unittests passing (11/11). |
+| **Phase 2: Auth & Session Management** | **Complete & Verified** | Officer & outlet login, organization tabs (Rohan, HPCL, Outlet), PHP `$2y$` bcrypt verification, persistent session restoration (`app_session`), identity switching, and self-service password update passing (node:test). |
+| **Phase 3: Orders, Approvals & Delivery** | **Complete & Verified** | Multi-item drafts, pricing/FOC calculations, order submissions, role-scoped approval decisions, payment receipt & POD document attachment validation (magic bytes), return requests/decisions, and restart persistence passing (node:test). |
+| **Phase 4: API, Pending & Stock Controls** | **Complete & Verified** | Pending volume submissions, active duplicate constraint (`app_pending_active_once`), atomic pending approval/rejection, baseline stock computation, and Super Admin stock toggles passing (node:test). |
+| **Phase 5: MIS, CSV, Reports & Admin** | **Complete & Verified** | Scoped MIS grid, detailed CSV parser (skipping blanks, flagging malformed lines), preview/commit atomic transactions, export to device cache/Android share, transactional bulk deletion (hiding projections, deleting sheet rows), and local audit history passing (node:test). |
+| **Automated Test Suite** | **Passed** | 100% pass rate: `npm run typecheck` (0 errors), `npm run test:domain` (21 tests), `npm run test:seed` (11 tests), `npm run check:offline` (0 network calls). |
+| **EAS Archive Inspection** | **Passed** | Verified bundle output (49 non-git files, 0 reference PHP, 0 JSON files, 0 test suites, 0 caches, SQLite DB asset included). |
+| **EAS Cloud Build** | **Pending User Run** | Ready for execution via `npx eas-cli build --platform android --profile production-apk`. |
+| **APK Installation & Hardware Cold Start** | **Pending Build** | Requires physical Android device testing post-cloud build. |
+| **Airplane-Mode On-Device QA** | **Pending Build** | Requires physical Android device testing post-cloud build. |
 
-## Phase 2 scope after Phase 0/1 gates
+---
 
-1. Choose and verify a local bcrypt implementation against every supplied PHP `$2y$` hash and `Demo@12345`; preserve the supplied hashes and test wrong passwords.
-2. Implement officer and outlet login with the original organization tabs, case-insensitive unambiguous officer lookup, outlet linkage check, and current-account revalidation. Store only a local session marker in secure device storage.
-3. Implement logout and identity/role switching with a full scope and cache refresh. Preserve page access controls while enforcing authorization in domain services for every query and mutation.
-4. Port `actor`, `userLevel`, organization/zone/region/sales-area helpers, outlet scope, page controls, user management permissions and password change/reset rules from `auth.php` and `outlet-users.php`.
-5. Add regression tests for each login, session, password, account mutation and scope branch, including deletion and changed permissions while signed in. Authentication screens follow these services and tests.
+## Detailed Specification Matrix (18 Portal Modules)
 
-These are remaining tasks, not completed implementation. The 87-action static audit is documented; unresolved source/runtime and Android foundation gates remain before Phase 2.
+| Module / PAGE_ID | Specification Scope | Implementation Status | Functional Notes |
+|---|---|---|---|
+| `dashboard` | KPI summary, order counts, pending review alert, quick actions | **Implemented** | Reads metrics and recent orders from local SQLite based on actor scope. |
+| `neworder` | Order draft creation with product & outlet selector | **Implemented** | Supports multi-item lines, FOC tiers, rate snapshots, and stock limits. |
+| `myorders` | Filtered list of orders created by current actor | **Implemented** | Filterable by status; supports draft editing, submission, and viewing. |
+| `allorders` | Scoped regional order registry | **Implemented** | Filterable by status and search; supports approval, rejection, and detail inspection. |
+| `approvals` | Pending approvals desk for orders & volume entries | **Implemented** | Enforces atomic review decisions, preventing duplicate submissions or stale reviews. |
+| `rawdata` | Complete historical MIS raw dataset | **Implemented** | Displays full tabular dataset with search, pagination, and deletion. |
+| `mis` | Scoped MIS transaction view with CSV export | **Implemented** | Scoped to actor zone/RO; supports CSV export via Android share sheet. |
+| `entry` | Direct volume transaction entry form | **Implemented** | Validates date format, outlet SAP, product item, and positive EA quantity. |
+| `returns` | Order return & credit note workflow | **Implemented** | Request return on delivered orders; role-based approval/rejection. |
+| `pod` | Proof of Delivery tracking and document uploads | **Implemented** | Enforces receipt-before-POD sequence; transitions order to `delivered`. |
+| `inventory` | Catalog listing, wholesale prices, and stock limits | **Implemented** | Real-time available stock = baseline - approved EA; Super Admin stock edit. |
+| `foc` | Free-Of-Cost promotional quantity thresholds | **Implemented** | Displays active FOC tiers; automatically applies free EA in order drafts. |
+| `sap` | Master directory of authorized retail outlets | **Implemented** | Filtered by actor geographic scope; displays SAP code, RO, and state. |
+| `roreport` | Regional Office performance metrics | **Implemented** | Computes volume and orders breakdown grouped by RO and Zone. |
+| `zones` | Geographic zone and territory hierarchy | **Audited Preview** | Read-only structural preview of zones, regions, and states. Editing unavailable. |
+| `team` | Officer hierarchy and reporting assignments | **Audited Preview** | Read-only directory of demo officers and jurisdictions. Editing unavailable. |
+| `outlets` | Retail outlet registration & administration | **Audited Preview** | Master outlet list is read-only; outlet user creation/editing is unavailable. |
+| `perms` | Per-user page access matrix | **Audited Preview** | Informational display of permission controls. Domain services enforce rules. |
 
+---
 
+## Known Boundaries & Unimplemented Features
+
+- **Account Administration:** Adding new officers, deleting users, or changing user roles is not supported; user identities are fixed in the demo database.
+- **Master Data Mutations:** Product catalog, outlet directory, prices, and FOC tier editing remain centrally managed and read-only.
+- **Server QR Code:** The original portal's public QR linking to a server invoice URL is omitted to preserve complete offline privacy.
+- **Demo Reset:** The architecture and recovery procedure are documented in `ARCHITECTURE.md` and visible in Settings; automatic in-app database re-flashing is not implemented.

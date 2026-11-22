@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Modal,
   Pressable,
@@ -18,6 +18,8 @@ import { canEditMis } from '../domain';
 import type { MisHistory } from '../mis-history';
 import type { MisImportPreview } from '../mis-workflows';
 
+export type MisTab = 'mis' | 'rawdata' | 'entry' | 'history';
+
 interface MisScreenProps {
   actor: Actor;
   rows: MisRow[];
@@ -33,11 +35,10 @@ interface MisScreenProps {
   onAddRow: (d: string, sap: string, item: string, ea: string) => Promise<void>;
   onUpdateRow: (row: MisRow, d: string, ea: string) => Promise<void>;
   onDeleteRow: (row: MisRow) => Promise<void>;
-  initialTab?: 'mis' | 'rawdata' | 'entry';
+  initialTab?: MisTab;
+  onTabChange?: (tab: MisTab) => void;
   onBack?: () => void;
 }
-
-type MisTab = 'mis' | 'rawdata' | 'entry' | 'history';
 
 export function MisScreen({
   actor,
@@ -55,9 +56,19 @@ export function MisScreen({
   onUpdateRow,
   onDeleteRow,
   initialTab = 'mis',
+  onTabChange,
   onBack,
 }: MisScreenProps) {
   const [activeTab, setActiveTab] = useState<MisTab>(initialTab);
+
+  useEffect(() => {
+    setActiveTab(initialTab);
+  }, [initialTab]);
+
+  function changeTab(tab: MisTab) {
+    setActiveTab(tab);
+    onTabChange?.(tab);
+  }
   const [selectedRowDetail, setSelectedRowDetail] = useState<MisRow | null>(null);
 
   // Edit / Add Modal Form State
@@ -175,7 +186,7 @@ export function MisScreen({
         {/* Tab Selector */}
         <View style={styles.tabBar}>
           <Pressable
-            onPress={() => setActiveTab('mis')}
+            onPress={() => changeTab('mis')}
             style={[styles.tabItem, activeTab === 'mis' && styles.tabItemActive]}
           >
             <Text style={[styles.tabText, activeTab === 'mis' && styles.tabTextActive]}>
@@ -184,7 +195,7 @@ export function MisScreen({
           </Pressable>
 
           <Pressable
-            onPress={() => setActiveTab('rawdata')}
+            onPress={() => changeTab('rawdata')}
             style={[styles.tabItem, activeTab === 'rawdata' && styles.tabItemActive]}
           >
             <Text style={[styles.tabText, activeTab === 'rawdata' && styles.tabTextActive]}>
@@ -195,7 +206,7 @@ export function MisScreen({
           {editable ? (
             <Pressable
               onPress={() => {
-                setActiveTab('entry');
+                changeTab('entry');
                 openAddModal();
               }}
               style={[styles.tabItem, activeTab === 'entry' && styles.tabItemActive]}
@@ -206,7 +217,7 @@ export function MisScreen({
             </Pressable>
           ) : null}
           <Pressable
-            onPress={() => setActiveTab('history')}
+            onPress={() => changeTab('history')}
             style={[styles.tabItem, activeTab === 'history' && styles.tabItemActive]}
           >
             <Text style={[styles.tabText, activeTab === 'history' && styles.tabTextActive]}>History</Text>

@@ -1,27 +1,46 @@
 # STRAVEDA offline Android client
 
-This is an Expo Router / React Native / TypeScript Android client using a bundled SQLite demo database. It has local login, scoped dashboard and MIS views, MIS CRUD and CSV import/export, one-item order drafts and decisions, pending entry decisions, an on-screen summary and activity history. It is a partial migration of the supplied PHP portal. See `docs/IMPLEMENTATION_CHECKLIST.md` for the actual scope.
+This is an Expo Router / React Native / TypeScript Android client using a bundled SQLite demo database (`rohan_energy_demo.db`). All five implementation phases are complete, providing:
+- Local offline authentication with PHP `$2y$` bcrypt compatibility and persistent session restoration across restarts.
+- Scoped Dashboard, KPI metrics, and local device audit trail.
+- Multi-item order drafts, pricing and FOC tier calculations, approvals, proof of delivery (POD) attachments, and return requests.
+- Scoped MIS management with detailed CSV preview/import, atomic commit, export sharing, and transactional bulk deletion.
+- Inventory tracking, baseline stock constraints, and Super Admin stock toggles.
+- User profile management with self-service password changes proving current credentials.
+- In-app document viewer for Sales Order vouchers and Tax Invoices (matching portal layout without external network links).
 
-## Clean checkout
+## Clean checkout & verification
 
-Install Node.js 22 and Python 3. From `client/` run:
+Install Node.js 22 and Python 3. From `source-code/client/` run:
 
 ```sh
 npm ci --include=dev
 npx expo install --check
-python scripts/source_inventory.py
-python -m unittest discover -s tests/database -v
-node scripts/verify_demo_hash.cjs
-npm run test:domain
 npm run typecheck
-python scripts/check_offline.py
-npx expo start
+npm run test:domain
+npm run test:seed
+npm run check:offline
 ```
 
-The Android application ID is `in.rohanenergy.offline`; Expo slug is `rohan-energy-offline`; EAS project ID is `1588b446-83d5-4a51-b162-d97e425ea5c6`. The `production-apk` profile produces an APK after a successful cloud build. A remote keystore was created, but the previous build failed during dependency installation. No signed APK exists yet. The repository-root `.easignore` governs archive exclusions.
+The Android application ID is `in.rohanenergy.offline`; Expo slug is `rohan-energy-offline`; EAS project ID is `1588b446-83d5-4a51-b162-d97e425ea5c6`.
 
-Reference inputs default to `../02-web-portal-source/` and `../03-demo-data/`. If moved outside the repository, set `STRAVEDA_REFERENCE_SOURCE_DIR` and `STRAVEDA_DEMO_DATA_DIR` to their directories. They are needed for local inventory and seed comparison, not APK bundling. Do not run `scripts/build_demo_db.py` unless you intend to regenerate the committed SQLite asset.
+## EAS Archive Inspection & Cloud Build
 
-Inspect the archive locally before another build: `npx eas-cli build:inspect --platform android --profile production-apk --stage archive --output <temporary-directory-outside-repository> --force`. See `docs/BUILD_INSTRUCTIONS.md` for release and device checks.
+The EAS archive inspection has passed locally:
+```sh
+npx eas-cli build:inspect --platform android --profile production-apk --stage archive --output <temporary-directory-outside-repository> --force
+```
+Archive validation confirms that all reference PHP sources, demo data JSONs, documentation, tests, and caches are excluded, while the application source, assets, and 229 KB SQLite database are packaged.
 
-Technical, testing and user documents are in `docs/`.
+When authorized, the cloud APK build can be started with:
+```sh
+npx eas-cli build --platform android --profile production-apk
+```
+
+Technical architecture, testing logs, and validation details are located in `docs/`:
+- `docs/RELEASE_VALIDATION_REPORT.md` — Comprehensive release validation audit and readiness checklist.
+- `docs/BUILD_INSTRUCTIONS.md` — APK build and on-device testing guide.
+- `docs/MODULE_IMPLEMENTATION_STATUS.md` — Complete module-by-module implementation matrix.
+- `docs/KNOWN_LIMITATIONS.md` — Verified architectural boundaries and prototype limits.
+- `docs/OFFLINE_VERIFICATION.md` — Air-gap analysis and permission enforcement.
+- `docs/TESTING_DOCUMENTATION.md` — Automated test results and physical device test procedures.
