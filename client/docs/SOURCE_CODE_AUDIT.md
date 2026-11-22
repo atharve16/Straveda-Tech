@@ -1,6 +1,6 @@
 # Source code audit — working inventory
 
-This inventory was checked against the supplied PHP dispatch switches and the early `public_invoice` branch at `orders.php:1062`. The original script missed that branch. `python scripts/source_inventory.py` reports **87 actions and 305 declared PHP functions** without overwriting these notes. The 23 `auth.php` actions and 63 directly reachable authentication helpers have source contracts in [AUTHENTICATION_AUDIT_REPORT.md](AUTHENTICATION_AUDIT_REPORT.md); three authentication helper call sites remain unknown. Other modules remain a route/function inventory, not a completed behavioral audit. The PHP source remains authoritative.
+This inventory was checked against the supplied PHP dispatch switches and the early `public_invoice` branch at `orders.php:1062`. The original script missed that branch. `python scripts/source_inventory.py` reports **87 actions and 305 declared PHP functions** without overwriting these notes. The 23 `auth.php` actions and 63 reachable authentication helpers have source contracts in [AUTHENTICATION_AUDIT_REPORT.md](AUTHENTICATION_AUDIT_REPORT.md); three authentication helper call sites remain unknown. All 37 `orders.php` actions and 129 order helpers have source contracts in [ORDERS_AUDIT_REPORT.md](ORDERS_AUDIT_REPORT.md). The `api.php` and `mis.php` modules remain inventories, not behavioral audits. The PHP source remains authoritative.
 
 ## Completeness gate (2026-11-22)
 
@@ -10,11 +10,12 @@ This inventory was checked against the supplied PHP dispatch switches and the ea
 | Syntactically routable by PHP dispatch URL/body | 87; runtime execution needs the absent `config.php` and a populated local database |
 | Confirmed dead actions | 0; frontend usage is not a reachability requirement for a public route |
 | Declared PHP helper functions | 305 |
-| Confirmed reachable helper functions | 63 authentication helpers traced to supplied route call chains; other modules pending |
-| Helpers requiring TypeScript migration | 50 reachable authentication rule/security helpers; 13 server-only adapters need local replacements; 3 auth helper reachability unknown; other modules pending |
-| Fully audited actions | 23 (`auth.php`); no Android implementation |
-| Pending actions | 64 (non-authentication routes) |
+| Confirmed reachable helper functions | 192: 63 authentication and 129 orders helpers traced to supplied route call chains; other modules pending |
+| Helpers requiring TypeScript migration | 50 reachable authentication rule/security helpers and the order rule/security helpers need local equivalents; server/database/file adapters need local replacements; 3 auth helper reachability unknown; API/MIS pending |
+| Fully audited actions | 60 (23 `auth.php`, 37 `orders.php`); no Android implementation |
+| Pending actions | 27 (19 `api.php`, 8 `mis.php`) |
 | Fully audited authentication helpers | 63 of 66 declared in focus files; 3 have unknown reachability |
+| Fully audited orders helpers | 129 of 129 declared in `orders.php`; all traced to a route in supplied PHP |
 
 The 305 functions include 25 in `mis-xlsx.php`; this file contains a NUL byte, so ordinary `rg` treats it as binary and undercounts functions. The inventory script reads it as text. The frontend files `index.html`, `orders.js`, `mis.js`, `dash-reports.js`, `salesorder.js`, and `invoice.html` call the PHP endpoints; `invoice.html:32` calls `public_invoice`. API action names repeat across separate endpoints (`approve`, `delete`, `get`, `import`); these are distinct routes, not duplicate implementations. No action is proven dead merely because a static search missed a browser caller.
 
@@ -22,7 +23,7 @@ The 305 functions include 25 in `mis-xlsx.php`; this file contains a NUL byte, s
 
 `auth.php`, `orders.php`, `api.php`, and `mis-core.php` include `config.php`, which is absent; only `config.example.php` is supplied. `users-store.php` reads `users.php`, also absent; `03-demo-data/users.demo.php` is the supplied demo substitute. `mis-core.php:174` references absent `mis-data/seed.json`, while `mis-core.php:289` and `mis-xlsx.php` need absent `mis-data/template.xlsx`. The JSON demo MIS rows are supplied separately, but they do not recreate the workbook package. The original live configuration, live officer roster, and workbook cannot be audited from this kit.
 
-For **each of the remaining 64 action rows below**, review its dispatch branch and the called helper body (including indirect calls), then record required and optional fields, method and CSRF behavior, validation, authentication and role/scope guards, tables and SQL, transaction boundaries, success/error payloads, and Android service/test mapping. The 239 other helper rows and three unknown-reachability authentication helpers still need disposition. The selected non-authentication contract fragments at the end are partial evidence and do not satisfy this gate. Compare JavaScript action references and HTML forms against the final route list. No Phase 2 implementation is authorized by this source audit.
+For **each of the remaining 27 API/MIS action rows below**, review its dispatch branch and helper bodies, then record request/response, validation, authorization, data/transaction effects and Android migration tests. The 110 API/MIS/other helper rows and three unknown-reachability authentication helpers still need disposition. Order contracts are in [ORDERS_AUDIT_REPORT.md](ORDERS_AUDIT_REPORT.md); the earlier selected order fragments at the end of this file are superseded by that report. No Phase 2 implementation is authorized by this source audit.
 
 ### Fully audited action contract
 
@@ -60,6 +61,8 @@ The table records each `auth.php` action's required/optional business input, gua
 
 ## PHP actions
 
+The 37 `orders.php` rows below are index entries. Their complete source ranges, frontend callers, method/CSRF contract, field validation, actor and data scope, SQL/file/transaction effects, response/error contract, duplicate behavior and proposed Android tests are in [ORDERS_AUDIT_REPORT.md](ORDERS_AUDIT_REPORT.md#18-metadata-outlet-and-sap). The 129 order helper contracts and direct caller register are in its [helper section](ORDERS_AUDIT_REPORT.md#helper-dependency-register). `AUDITED` never means implemented.
+
 | File:line | Action | Dispatched helper | Status |
 |---|---|---|---|
 | `auth.php:33` | `login` | `see dispatch body` | AUDITED |
@@ -85,43 +88,43 @@ The table records each `auth.php` action's required/optional business input, gua
 | `auth.php:732` | `outlet_update` | `see dispatch body` | AUDITED |
 | `auth.php:733` | `outlet_delete` | `see dispatch body` | AUDITED |
 | `auth.php:734` | `outlet_import` | `see dispatch body` | AUDITED |
-| `orders.php:1062` | `public_invoice` | early public branch | NEEDS_CLARIFICATION |
-| `orders.php:1097` | `meta` | `ordMeta` | NEEDS_CLARIFICATION |
-| `orders.php:1098` | `outlet` | `ordOutletLookup` | NEEDS_CLARIFICATION |
-| `orders.php:1099` | `sap_list` | `ordSapList` | NEEDS_CLARIFICATION |
-| `orders.php:1100` | `sap_save` | `ordSapSave` | NEEDS_CLARIFICATION |
-| `orders.php:1101` | `sap_history` | `ordSapHistory` | NEEDS_CLARIFICATION |
-| `orders.php:1102` | `sap_import` | `ordSapImport` | NEEDS_CLARIFICATION |
-| `orders.php:1103` | `ro_report` | `ordRoReport` | NEEDS_CLARIFICATION |
-| `orders.php:1104` | `list` | `ordList` | NEEDS_CLARIFICATION |
-| `orders.php:1105` | `get` | `ordGet` | NEEDS_CLARIFICATION |
-| `orders.php:1106` | `history` | `ordHistory` | NEEDS_CLARIFICATION |
-| `orders.php:1107` | `save` | `ordSave` | NEEDS_CLARIFICATION |
-| `orders.php:1108` | `submit` | `ordSubmit` | NEEDS_CLARIFICATION |
-| `orders.php:1109` | `delete` | `ordDelete` | NEEDS_CLARIFICATION |
-| `orders.php:1110` | `bulk` | `ordBulk` | NEEDS_CLARIFICATION |
-| `orders.php:1111` | `set_min_order` | `ordSetMinOrder` | NEEDS_CLARIFICATION |
-| `orders.php:1112` | `set_perms` | `ordSetPerms` | NEEDS_CLARIFICATION |
-| `orders.php:1113` | `set_prices` | `ordSetPrices` | NEEDS_CLARIFICATION |
-| `orders.php:1114` | `set_stock` | `ordSetStock` | NEEDS_CLARIFICATION |
-| `orders.php:1115` | `add_product` | `ordAddProduct` | NEEDS_CLARIFICATION |
-| `orders.php:1116` | `delete_product` | `ordDeleteProduct` | NEEDS_CLARIFICATION |
-| `orders.php:1117` | `save_foc_list` | `ordSaveFocList` | NEEDS_CLARIFICATION |
-| `orders.php:1118` | `upload_pod` | `ordUploadFile` | NEEDS_CLARIFICATION |
-| `orders.php:1119` | `upload_receipt` | `ordUploadFile` | NEEDS_CLARIFICATION |
-| `orders.php:1120` | `upload_invoice` | `ordUploadFile` | NEEDS_CLARIFICATION |
-| `orders.php:1121` | `edit_invoice` | `ordEditInvoice` | NEEDS_CLARIFICATION |
-| `orders.php:1122` | `pod_download` | `ordFileDownload` | NEEDS_CLARIFICATION |
-| `orders.php:1123` | `file_download` | `ordFileDownload` | NEEDS_CLARIFICATION |
-| `orders.php:1124` | `return_request` | `ordRetRequest` | NEEDS_CLARIFICATION |
-| `orders.php:1125` | `return_list` | `ordRetList` | NEEDS_CLARIFICATION |
-| `orders.php:1126` | `return_decide` | `ordRetDecide` | NEEDS_CLARIFICATION |
-| `orders.php:1127` | `change_log` | `ordChangeLog` | NEEDS_CLARIFICATION |
-| `orders.php:1128` | `outlet_officers` | `ordOutletOfficers` | NEEDS_CLARIFICATION |
-| `orders.php:1129` | `profile` | `ordProfile` | NEEDS_CLARIFICATION |
-| `orders.php:1130` | `superiors` | `ordSuperiors` | NEEDS_CLARIFICATION |
-| `orders.php:1131` | `approve` | `ordDecide` | NEEDS_CLARIFICATION |
-| `orders.php:1132` | `reject` | `ordDecide` | NEEDS_CLARIFICATION |
+| `orders.php:1062` | `public_invoice` | early public branch | AUDITED |
+| `orders.php:1097` | `meta` | `ordMeta` | AUDITED |
+| `orders.php:1098` | `outlet` | `ordOutletLookup` | AUDITED |
+| `orders.php:1099` | `sap_list` | `ordSapList` | AUDITED |
+| `orders.php:1100` | `sap_save` | `ordSapSave` | AUDITED |
+| `orders.php:1101` | `sap_history` | `ordSapHistory` | AUDITED |
+| `orders.php:1102` | `sap_import` | `ordSapImport` | AUDITED |
+| `orders.php:1103` | `ro_report` | `ordRoReport` | AUDITED |
+| `orders.php:1104` | `list` | `ordList` | AUDITED |
+| `orders.php:1105` | `get` | `ordGet` | AUDITED |
+| `orders.php:1106` | `history` | `ordHistory` | AUDITED |
+| `orders.php:1107` | `save` | `ordSave` | AUDITED |
+| `orders.php:1108` | `submit` | `ordSubmit` | AUDITED |
+| `orders.php:1109` | `delete` | `ordDelete` | AUDITED |
+| `orders.php:1110` | `bulk` | `ordBulk` | AUDITED |
+| `orders.php:1111` | `set_min_order` | `ordSetMinOrder` | AUDITED |
+| `orders.php:1112` | `set_perms` | `ordSetPerms` | AUDITED |
+| `orders.php:1113` | `set_prices` | `ordSetPrices` | AUDITED |
+| `orders.php:1114` | `set_stock` | `ordSetStock` | AUDITED |
+| `orders.php:1115` | `add_product` | `ordAddProduct` | AUDITED |
+| `orders.php:1116` | `delete_product` | `ordDeleteProduct` | AUDITED |
+| `orders.php:1117` | `save_foc_list` | `ordSaveFocList` | AUDITED |
+| `orders.php:1118` | `upload_pod` | `ordUploadFile` | AUDITED |
+| `orders.php:1119` | `upload_receipt` | `ordUploadFile` | AUDITED |
+| `orders.php:1120` | `upload_invoice` | `ordUploadFile` | AUDITED |
+| `orders.php:1121` | `edit_invoice` | `ordEditInvoice` | AUDITED |
+| `orders.php:1122` | `pod_download` | `ordFileDownload` | AUDITED |
+| `orders.php:1123` | `file_download` | `ordFileDownload` | AUDITED |
+| `orders.php:1124` | `return_request` | `ordRetRequest` | AUDITED |
+| `orders.php:1125` | `return_list` | `ordRetList` | AUDITED |
+| `orders.php:1126` | `return_decide` | `ordRetDecide` | AUDITED |
+| `orders.php:1127` | `change_log` | `ordChangeLog` | AUDITED |
+| `orders.php:1128` | `outlet_officers` | `ordOutletOfficers` | AUDITED |
+| `orders.php:1129` | `profile` | `ordProfile` | AUDITED |
+| `orders.php:1130` | `superiors` | `ordSuperiors` | AUDITED |
+| `orders.php:1131` | `approve` | `ordDecide` | AUDITED |
+| `orders.php:1132` | `reject` | `ordDecide` | AUDITED |
 | `api.php:60` | `sales` | `getSales` | NEEDS_CLARIFICATION |
 | `api.php:61` | `add` | `addEntry` | NEEDS_CLARIFICATION |
 | `api.php:62` | `update` | `updateEntry` | NEEDS_CLARIFICATION |
@@ -218,135 +221,135 @@ The table records each `auth.php` action's required/optional business input, gua
 | `outlet-users.php:107` | `ouSuffix` | AUDITED |
 | `outlet-users.php:113` | `ouRulePassword` | AUDITED |
 | `outlet-users.php:118` | `ouHash` | AUDITED |
-| `orders.php:107` | `ordFail` | NEEDS_CLARIFICATION |
-| `orders.php:113` | `ordOut` | NEEDS_CLARIFICATION |
-| `orders.php:118` | `ordDB` | NEEDS_CLARIFICATION |
-| `orders.php:135` | `ordEnsureSchema` | NEEDS_CLARIFICATION |
-| `orders.php:343` | `ordAddColumns` | NEEDS_CLARIFICATION |
-| `orders.php:351` | `ordOutlet` | NEEDS_CLARIFICATION |
-| `orders.php:358` | `ordItems` | NEEDS_CLARIFICATION |
-| `orders.php:362` | `ordProducts` | NEEDS_CLARIFICATION |
-| `orders.php:371` | `ordDirectNames` | NEEDS_CLARIFICATION |
-| `orders.php:375` | `ordFocRules` | NEEDS_CLARIFICATION |
-| `orders.php:387` | `ordFocFor` | NEEDS_CLARIFICATION |
-| `orders.php:396` | `ordFocInfo` | NEEDS_CLARIFICATION |
-| `orders.php:409` | `ordFocMigrate` | NEEDS_CLARIFICATION |
-| `orders.php:435` | `ordMinOrder` | NEEDS_CLARIFICATION |
-| `orders.php:442` | `ordPerms` | NEEDS_CLARIFICATION |
-| `orders.php:453` | `ordHpclInvHidden` | NEEDS_CLARIFICATION |
-| `orders.php:457` | `ordHideInv` | NEEDS_CLARIFICATION |
-| `orders.php:461` | `ordPrices` | NEEDS_CLARIFICATION |
-| `orders.php:474` | `ordMissingPrices` | NEEDS_CLARIFICATION |
-| `orders.php:479` | `ordMissingPricesMsg` | NEEDS_CLARIFICATION |
-| `orders.php:493` | `ordStockEnabled` | NEEDS_CLARIFICATION |
-| `orders.php:498` | `ordStock` | NEEDS_CLARIFICATION |
-| `orders.php:520` | `ordMinOrderMsg` | NEEDS_CLARIFICATION |
-| `orders.php:523` | `ordOutletCount` | NEEDS_CLARIFICATION |
-| `orders.php:532` | `ordUser` | NEEDS_CLARIFICATION |
-| `orders.php:593` | `ordRequireCsrf` | NEEDS_CLARIFICATION |
-| `orders.php:602` | `ordScope` | NEEDS_CLARIFICATION |
-| `orders.php:638` | `ordZoneRos` | NEEDS_CLARIFICATION |
-| `orders.php:644` | `ordSheetZoneOfRo` | NEEDS_CLARIFICATION |
-| `orders.php:649` | `ordRoSql` | NEEDS_CLARIFICATION |
-| `orders.php:654` | `ordSaKey` | NEEDS_CLARIFICATION |
-| `orders.php:658` | `ordSaSql` | NEEDS_CLARIFICATION |
-| `orders.php:664` | `ordCoversRo` | NEEDS_CLARIFICATION |
-| `orders.php:668` | `ordCoversSa` | NEEDS_CLARIFICATION |
-| `orders.php:674` | `ordCoversOrder` | NEEDS_CLARIFICATION |
-| `orders.php:678` | `ordOwns` | NEEDS_CLARIFICATION |
-| `orders.php:683` | `ordApprCovers` | NEEDS_CLARIFICATION |
-| `orders.php:688` | `ordApprSql` | NEEDS_CLARIFICATION |
-| `orders.php:694` | `ordStatesOfScope` | NEEDS_CLARIFICATION |
-| `orders.php:701` | `ordSuperApprovers` | NEEDS_CLARIFICATION |
-| `orders.php:713` | `ordHpclAs` | NEEDS_CLARIFICATION |
-| `orders.php:716` | `ordAdminPlaces` | NEEDS_CLARIFICATION |
-| `orders.php:718` | `ordAllZones` | NEEDS_CLARIFICATION |
-| `orders.php:721` | `ordUserZones` | NEEDS_CLARIFICATION |
-| `orders.php:728` | `ordInZones` | NEEDS_CLARIFICATION |
-| `orders.php:734` | `ordApprovers` | NEEDS_CLARIFICATION |
-| `orders.php:759` | `ordPlacerRole` | NEEDS_CLARIFICATION |
-| `orders.php:765` | `ordApproverText` | NEEDS_CLARIFICATION |
-| `orders.php:789` | `ordAwaitCond` | NEEDS_CLARIFICATION |
-| `orders.php:813` | `ordMarkDecidable` | NEEDS_CLARIFICATION |
-| `orders.php:827` | `ordBackfillPlacedRole` | NEEDS_CLARIFICATION |
-| `orders.php:845` | `ordHasApprover` | NEEDS_CLARIFICATION |
-| `orders.php:851` | `ordFormat` | NEEDS_CLARIFICATION |
-| `orders.php:878` | `ordItemsFor` | NEEDS_CLARIFICATION |
-| `orders.php:895` | `ordSelect` | NEEDS_CLARIFICATION |
-| `orders.php:902` | `ordLoad` | NEEDS_CLARIFICATION |
-| `orders.php:916` | `ordEvents` | NEEDS_CLARIFICATION |
-| `orders.php:922` | `ordLogEvent` | NEEDS_CLARIFICATION |
-| `orders.php:930` | `ordToday` | NEEDS_CLARIFICATION |
-| `orders.php:933` | `ordStr` | NEEDS_CLARIFICATION |
-| `orders.php:943` | `ordValidate` | NEEDS_CLARIFICATION |
-| `orders.php:954` | `ordCheck` | NEEDS_CLARIFICATION |
-| `orders.php:1142` | `ordMeta` | NEEDS_CLARIFICATION |
-| `orders.php:1192` | `ordSetPrices` | NEEDS_CLARIFICATION |
-| `orders.php:1220` | `ordSetStock` | NEEDS_CLARIFICATION |
-| `orders.php:1253` | `ordAddProduct` | NEEDS_CLARIFICATION |
-| `orders.php:1270` | `ordDeleteProduct` | NEEDS_CLARIFICATION |
-| `orders.php:1286` | `ordSaveFocList` | NEEDS_CLARIFICATION |
-| `orders.php:1353` | `ordSetMinOrder` | NEEDS_CLARIFICATION |
-| `orders.php:1370` | `ordSetPerms` | NEEDS_CLARIFICATION |
-| `orders.php:1385` | `ordAutoSteps` | NEEDS_CLARIFICATION |
-| `orders.php:1393` | `ordFinalizeSO` | NEEDS_CLARIFICATION |
-| `orders.php:1411` | `ordGiveNumber` | NEEDS_CLARIFICATION |
-| `orders.php:1429` | `ordHealStages` | NEEDS_CLARIFICATION |
-| `orders.php:1443` | `ordIniBytes` | NEEDS_CLARIFICATION |
-| `orders.php:1450` | `ordPodMaxBytes` | NEEDS_CLARIFICATION |
-| `orders.php:1455` | `ordFileInfo` | NEEDS_CLARIFICATION |
-| `orders.php:1464` | `ordPodContentOk` | NEEDS_CLARIFICATION |
-| `orders.php:1477` | `ordPodDir` | NEEDS_CLARIFICATION |
-| `orders.php:1484` | `ordPodLimitMsg` | NEEDS_CLARIFICATION |
-| `orders.php:1492` | `ordUploadFile` | NEEDS_CLARIFICATION |
-| `orders.php:1582` | `ordEditInvoice` | NEEDS_CLARIFICATION |
-| `orders.php:1632` | `ordFileDownload` | NEEDS_CLARIFICATION |
-| `orders.php:1656` | `ordOutletLookup` | NEEDS_CLARIFICATION |
-| `orders.php:1692` | `ordSapAccess` | NEEDS_CLARIFICATION |
-| `orders.php:1706` | `ordSapScope` | NEEDS_CLARIFICATION |
-| `orders.php:1719` | `ordRegionInfo` | NEEDS_CLARIFICATION |
-| `orders.php:1728` | `ordSapList` | NEEDS_CLARIFICATION |
-| `orders.php:1789` | `ordSapSave` | NEEDS_CLARIFICATION |
-| `orders.php:1871` | `ordSapImportClean` | NEEDS_CLARIFICATION |
-| `orders.php:1876` | `ordSapImportNum` | NEEDS_CLARIFICATION |
-| `orders.php:1878` | `ordSapImportBlank` | NEEDS_CLARIFICATION |
-| `orders.php:1881` | `ordSapImportPlan` | NEEDS_CLARIFICATION |
-| `orders.php:1942` | `ordSapImport` | NEEDS_CLARIFICATION |
-| `orders.php:2007` | `ordChangeLog` | NEEDS_CLARIFICATION |
-| `orders.php:2044` | `ordMeInfo` | NEEDS_CLARIFICATION |
-| `orders.php:2056` | `ordProfile` | NEEDS_CLARIFICATION |
-| `orders.php:2097` | `ordHpclTier` | NEEDS_CLARIFICATION |
-| `orders.php:2109` | `ordSuperiors` | NEEDS_CLARIFICATION |
-| `orders.php:2180` | `ordOutletProfile` | NEEDS_CLARIFICATION |
-| `orders.php:2194` | `ordOfficersOf` | NEEDS_CLARIFICATION |
-| `orders.php:2218` | `ordOutletOfficers` | NEEDS_CLARIFICATION |
-| `orders.php:2238` | `ordSapHistory` | NEEDS_CLARIFICATION |
-| `orders.php:2256` | `ordRoReportOrders` | NEEDS_CLARIFICATION |
-| `orders.php:2327` | `ordRoReport` | NEEDS_CLARIFICATION |
-| `orders.php:2456` | `ordList` | NEEDS_CLARIFICATION |
-| `orders.php:2511` | `ordHistory` | NEEDS_CLARIFICATION |
-| `orders.php:2528` | `ordGet` | NEEDS_CLARIFICATION |
-| `orders.php:2546` | `ordSave` | NEEDS_CLARIFICATION |
-| `orders.php:2637` | `ordPlaceInsert` | NEEDS_CLARIFICATION |
-| `orders.php:2647` | `ordInsertDraft` | NEEDS_CLARIFICATION |
-| `orders.php:2656` | `ordInsertItems` | NEEDS_CLARIFICATION |
-| `orders.php:2662` | `ordMoveToPending` | NEEDS_CLARIFICATION |
-| `orders.php:2677` | `ordSubmit` | NEEDS_CLARIFICATION |
-| `orders.php:2716` | `ordBulkBrand` | NEEDS_CLARIFICATION |
-| `orders.php:2722` | `ordBulkInt` | NEEDS_CLARIFICATION |
-| `orders.php:2727` | `ordBulkName` | NEEDS_CLARIFICATION |
-| `orders.php:2729` | `ordBulk` | NEEDS_CLARIFICATION |
-| `orders.php:2869` | `ordDelete` | NEEDS_CLARIFICATION |
-| `orders.php:2884` | `ordRetWho` | NEEDS_CLARIFICATION |
-| `orders.php:2889` | `ordRetMayDecide` | NEEDS_CLARIFICATION |
-| `orders.php:2894` | `ordRetAttach` | NEEDS_CLARIFICATION |
-| `orders.php:2904` | `ordRetRow` | NEEDS_CLARIFICATION |
-| `orders.php:2910` | `ordRetDecidable` | NEEDS_CLARIFICATION |
-| `orders.php:2917` | `ordRetMeta` | NEEDS_CLARIFICATION |
-| `orders.php:2930` | `ordRetRequest` | NEEDS_CLARIFICATION |
-| `orders.php:2956` | `ordRetList` | NEEDS_CLARIFICATION |
-| `orders.php:2987` | `ordRetDecide` | NEEDS_CLARIFICATION |
-| `orders.php:3013` | `ordDecide` | NEEDS_CLARIFICATION |
+| `orders.php:107` | `ordFail` | AUDITED |
+| `orders.php:113` | `ordOut` | AUDITED |
+| `orders.php:118` | `ordDB` | AUDITED |
+| `orders.php:135` | `ordEnsureSchema` | AUDITED |
+| `orders.php:343` | `ordAddColumns` | AUDITED |
+| `orders.php:351` | `ordOutlet` | AUDITED |
+| `orders.php:358` | `ordItems` | AUDITED |
+| `orders.php:362` | `ordProducts` | AUDITED |
+| `orders.php:371` | `ordDirectNames` | AUDITED |
+| `orders.php:375` | `ordFocRules` | AUDITED |
+| `orders.php:387` | `ordFocFor` | AUDITED |
+| `orders.php:396` | `ordFocInfo` | AUDITED |
+| `orders.php:409` | `ordFocMigrate` | AUDITED |
+| `orders.php:435` | `ordMinOrder` | AUDITED |
+| `orders.php:442` | `ordPerms` | AUDITED |
+| `orders.php:453` | `ordHpclInvHidden` | AUDITED |
+| `orders.php:457` | `ordHideInv` | AUDITED |
+| `orders.php:461` | `ordPrices` | AUDITED |
+| `orders.php:474` | `ordMissingPrices` | AUDITED |
+| `orders.php:479` | `ordMissingPricesMsg` | AUDITED |
+| `orders.php:493` | `ordStockEnabled` | AUDITED |
+| `orders.php:498` | `ordStock` | AUDITED |
+| `orders.php:520` | `ordMinOrderMsg` | AUDITED |
+| `orders.php:523` | `ordOutletCount` | AUDITED |
+| `orders.php:532` | `ordUser` | AUDITED |
+| `orders.php:593` | `ordRequireCsrf` | AUDITED |
+| `orders.php:602` | `ordScope` | AUDITED |
+| `orders.php:638` | `ordZoneRos` | AUDITED |
+| `orders.php:644` | `ordSheetZoneOfRo` | AUDITED |
+| `orders.php:649` | `ordRoSql` | AUDITED |
+| `orders.php:654` | `ordSaKey` | AUDITED |
+| `orders.php:658` | `ordSaSql` | AUDITED |
+| `orders.php:664` | `ordCoversRo` | AUDITED |
+| `orders.php:668` | `ordCoversSa` | AUDITED |
+| `orders.php:674` | `ordCoversOrder` | AUDITED |
+| `orders.php:678` | `ordOwns` | AUDITED |
+| `orders.php:683` | `ordApprCovers` | AUDITED |
+| `orders.php:688` | `ordApprSql` | AUDITED |
+| `orders.php:694` | `ordStatesOfScope` | AUDITED |
+| `orders.php:701` | `ordSuperApprovers` | AUDITED |
+| `orders.php:713` | `ordHpclAs` | AUDITED |
+| `orders.php:716` | `ordAdminPlaces` | AUDITED |
+| `orders.php:718` | `ordAllZones` | AUDITED |
+| `orders.php:721` | `ordUserZones` | AUDITED |
+| `orders.php:728` | `ordInZones` | AUDITED |
+| `orders.php:734` | `ordApprovers` | AUDITED |
+| `orders.php:759` | `ordPlacerRole` | AUDITED |
+| `orders.php:765` | `ordApproverText` | AUDITED |
+| `orders.php:789` | `ordAwaitCond` | AUDITED |
+| `orders.php:813` | `ordMarkDecidable` | AUDITED |
+| `orders.php:827` | `ordBackfillPlacedRole` | AUDITED |
+| `orders.php:845` | `ordHasApprover` | AUDITED |
+| `orders.php:851` | `ordFormat` | AUDITED |
+| `orders.php:878` | `ordItemsFor` | AUDITED |
+| `orders.php:895` | `ordSelect` | AUDITED |
+| `orders.php:902` | `ordLoad` | AUDITED |
+| `orders.php:916` | `ordEvents` | AUDITED |
+| `orders.php:922` | `ordLogEvent` | AUDITED |
+| `orders.php:930` | `ordToday` | AUDITED |
+| `orders.php:933` | `ordStr` | AUDITED |
+| `orders.php:943` | `ordValidate` | AUDITED |
+| `orders.php:954` | `ordCheck` | AUDITED |
+| `orders.php:1142` | `ordMeta` | AUDITED |
+| `orders.php:1192` | `ordSetPrices` | AUDITED |
+| `orders.php:1220` | `ordSetStock` | AUDITED |
+| `orders.php:1253` | `ordAddProduct` | AUDITED |
+| `orders.php:1270` | `ordDeleteProduct` | AUDITED |
+| `orders.php:1286` | `ordSaveFocList` | AUDITED |
+| `orders.php:1353` | `ordSetMinOrder` | AUDITED |
+| `orders.php:1370` | `ordSetPerms` | AUDITED |
+| `orders.php:1385` | `ordAutoSteps` | AUDITED |
+| `orders.php:1393` | `ordFinalizeSO` | AUDITED |
+| `orders.php:1411` | `ordGiveNumber` | AUDITED |
+| `orders.php:1429` | `ordHealStages` | AUDITED |
+| `orders.php:1443` | `ordIniBytes` | AUDITED |
+| `orders.php:1450` | `ordPodMaxBytes` | AUDITED |
+| `orders.php:1455` | `ordFileInfo` | AUDITED |
+| `orders.php:1464` | `ordPodContentOk` | AUDITED |
+| `orders.php:1477` | `ordPodDir` | AUDITED |
+| `orders.php:1484` | `ordPodLimitMsg` | AUDITED |
+| `orders.php:1492` | `ordUploadFile` | AUDITED |
+| `orders.php:1582` | `ordEditInvoice` | AUDITED |
+| `orders.php:1632` | `ordFileDownload` | AUDITED |
+| `orders.php:1656` | `ordOutletLookup` | AUDITED |
+| `orders.php:1692` | `ordSapAccess` | AUDITED |
+| `orders.php:1706` | `ordSapScope` | AUDITED |
+| `orders.php:1719` | `ordRegionInfo` | AUDITED |
+| `orders.php:1728` | `ordSapList` | AUDITED |
+| `orders.php:1789` | `ordSapSave` | AUDITED |
+| `orders.php:1871` | `ordSapImportClean` | AUDITED |
+| `orders.php:1876` | `ordSapImportNum` | AUDITED |
+| `orders.php:1878` | `ordSapImportBlank` | AUDITED |
+| `orders.php:1881` | `ordSapImportPlan` | AUDITED |
+| `orders.php:1942` | `ordSapImport` | AUDITED |
+| `orders.php:2007` | `ordChangeLog` | AUDITED |
+| `orders.php:2044` | `ordMeInfo` | AUDITED |
+| `orders.php:2056` | `ordProfile` | AUDITED |
+| `orders.php:2097` | `ordHpclTier` | AUDITED |
+| `orders.php:2109` | `ordSuperiors` | AUDITED |
+| `orders.php:2180` | `ordOutletProfile` | AUDITED |
+| `orders.php:2194` | `ordOfficersOf` | AUDITED |
+| `orders.php:2218` | `ordOutletOfficers` | AUDITED |
+| `orders.php:2238` | `ordSapHistory` | AUDITED |
+| `orders.php:2256` | `ordRoReportOrders` | AUDITED |
+| `orders.php:2327` | `ordRoReport` | AUDITED |
+| `orders.php:2456` | `ordList` | AUDITED |
+| `orders.php:2511` | `ordHistory` | AUDITED |
+| `orders.php:2528` | `ordGet` | AUDITED |
+| `orders.php:2546` | `ordSave` | AUDITED |
+| `orders.php:2637` | `ordPlaceInsert` | AUDITED |
+| `orders.php:2647` | `ordInsertDraft` | AUDITED |
+| `orders.php:2656` | `ordInsertItems` | AUDITED |
+| `orders.php:2662` | `ordMoveToPending` | AUDITED |
+| `orders.php:2677` | `ordSubmit` | AUDITED |
+| `orders.php:2716` | `ordBulkBrand` | AUDITED |
+| `orders.php:2722` | `ordBulkInt` | AUDITED |
+| `orders.php:2727` | `ordBulkName` | AUDITED |
+| `orders.php:2729` | `ordBulk` | AUDITED |
+| `orders.php:2869` | `ordDelete` | AUDITED |
+| `orders.php:2884` | `ordRetWho` | AUDITED |
+| `orders.php:2889` | `ordRetMayDecide` | AUDITED |
+| `orders.php:2894` | `ordRetAttach` | AUDITED |
+| `orders.php:2904` | `ordRetRow` | AUDITED |
+| `orders.php:2910` | `ordRetDecidable` | AUDITED |
+| `orders.php:2917` | `ordRetMeta` | AUDITED |
+| `orders.php:2930` | `ordRetRequest` | AUDITED |
+| `orders.php:2956` | `ordRetList` | AUDITED |
+| `orders.php:2987` | `ordRetDecide` | AUDITED |
+| `orders.php:3013` | `ordDecide` | AUDITED |
 | `api.php:21` | `getDB` | NEEDS_CLARIFICATION |
 | `api.php:89` | `norm` | NEEDS_CLARIFICATION |
 | `api.php:98` | `resolveColumns` | NEEDS_CLARIFICATION |
