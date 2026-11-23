@@ -1,15 +1,60 @@
 # STRAVEDA
 
-The Git repository root is this directory. `source-code/client/` is the Expo SDK 58 Android application. `source-code/02-web-portal-source/` and `source-code/03-demo-data/` are reference inputs for local inventory and database verification; they are excluded from the EAS archive and are not required to build or run the APK. `documentation/` contains submission documents. `android/` is currently empty; no signed APK has been generated locally.
+STRAVEDA is an offline-first Android prototype for selected Rohan Energy Order & MIS Portal workflows. The Android client is in `source-code/client/`; the PHP portal and demo-data directories are retained as reference inputs and are not part of the Android runtime.
 
-If reference inputs have been moved outside the repository, set `STRAVEDA_REFERENCE_SOURCE_DIR` to the PHP source directory and `STRAVEDA_DEMO_DATA_DIR` to the demo-data directory. Scripts also look in the current `source-code/` locations and the older root-level locations. Do not move these directories into the Android client.
+## Assignment documentation
 
-All five implementation phases are complete. From `source-code/client/`, the regression suite verifies:
-- `npm run typecheck` (TypeScript strict compilation with zero errors)
-- `npm run test:domain` (21 automated unit/integration tests for auth, session, orders, POD, returns, CSV, MIS, inventory, stock, and profile password changes)
-- `npm run test:seed` (11 SQLite schema, integrity, foreign key, and constraint tests)
-- `npm run check:offline` (Static scanner confirming zero runtime network references)
+- **[Complete Technical Project Documentation](documentation/STRAVEDA_TECHNICAL_DOCUMENTATION.md)** — project overview, scope, architecture, technology stack, folder structure, state management, authentication, workflows, offline design, testing, build, limitations, and future scope.
+- **[Database Schema Reference](documentation/STRAVEDA_DATABASE_SCHEMA.md)** — seed data, reference tables, runtime SQLite extensions, relationships, indexes, data semantics, integrity checks, and schema change guidance.
 
-The `production-apk` EAS profile uses project ID `1588b446-83d5-4a51-b162-d97e425ea5c6` and Android application ID `in.rohanenergy.offline`. The repository-root `.easignore` excludes reference material, caches, tests, and documentation from the archive while retaining the bundled SQLite database (`rohan_energy_demo.db`).
+## Repository layout
 
-EAS archive inspection has been executed and verified locally (`npx eas-cli build:inspect --platform android --profile production-apk --stage archive`). The project is in a **READY** state for cloud APK generation via `npx eas-cli build --platform android --profile production-apk`. Physical device installation, cold launch, and airplane-mode operations remain pending cloud build and hardware testing. See [build instructions](source-code/client/docs/BUILD_INSTRUCTIONS.md) and the [release validation report](source-code/client/docs/RELEASE_VALIDATION_REPORT.md).
+- `source-code/client/` — Expo SDK 58 / React Native Android application.
+- `source-code/02-web-portal-source/` — reference PHP portal source; not used at runtime by the Android app.
+- `source-code/03-demo-data/` — reference schema and demo JSON data used for seed validation.
+- `documentation/` — assignment and technical documentation.
+- Repository-root `.easignore` controls the EAS archive; reference inputs, docs, tests, and scripts are excluded while the bundled SQLite database is retained.
+
+## Technology and runtime
+
+The client uses TypeScript, React Native 0.88.1, Expo SDK 58, Expo Router, Expo SQLite, bcryptjs, and Expo device file/document-sharing modules. **Redux is not used**: UI state is managed with React component state and root navigation state; persistent business data is stored in SQLite.
+
+The application is designed to run offline with a bundled SQLite demo database and app-private file storage. Each installation has its own independent local data; there is no backend, cloud database, or cross-device synchronization.
+
+Android application ID: `in.rohanenergy.offline`  
+Expo slug: `rohan-energy-offline`  
+EAS project ID: `1588b446-83d5-4a51-b162-d97e425ea5c6`  
+APK profile: `production-apk`
+
+## Local setup and verification
+
+Prerequisites: Node.js 22 and Python 3.
+
+From `source-code/client/`:
+
+```bash
+npm ci --include=dev
+npx expo install --check
+npm run typecheck
+npm run test:domain
+npm run test:seed
+npm run check:offline
+```
+
+The current repository package script includes eight domain/workflow test files (28 tests in the latest recorded report) and 11 SQLite seed/schema tests. See the technical documentation for test scope and known device-level checks.
+
+## Android APK
+
+Inspect the EAS archive without starting a cloud build:
+
+```bash
+npx eas-cli build:inspect --platform android --profile production-apk --stage archive --output <temporary-directory-outside-repository> --force
+```
+
+Build the APK when ready:
+
+```bash
+npx eas-cli build --platform android --profile production-apk
+```
+
+The final APK still requires physical-device validation, including airplane-mode operation and inspection of the merged Android manifest. See the [client build instructions](source-code/client/docs/BUILD_INSTRUCTIONS.md) and [release validation report](source-code/client/docs/RELEASE_VALIDATION_REPORT.md).
